@@ -192,17 +192,19 @@ const Navigation = ({ user, onLogout }) => {
 };
 
 // Job Card Component
-const JobCard = ({ job, onApply, onReport, user }) => {
+const JobCard = ({ job, onApply, onReport, onViewDetails, user }) => {
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => onViewDetails(job)}>
       <CardContent className="p-6">
         <div className="flex justify-between items-start mb-4">
-          <div>
+          <div className="flex-1">
             <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
             <p className="text-sm text-gray-600">{job.company_name}</p>
-            <p className="text-sm text-gray-500">{job.location}</p>
+            <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+              📍 {job.location}
+            </p>
           </div>
-          <div className="flex gap-2 items-start">
+          <div className="flex gap-2 items-start flex-shrink-0">
             <Badge variant="outline" className="text-green-600 border-green-600">
               Sin Experiencia
             </Badge>
@@ -211,7 +213,7 @@ const JobCard = ({ job, onApply, onReport, user }) => {
                 size="sm" 
                 variant="ghost"
                 className="text-red-500 hover:text-red-700 p-1 h-6 w-6"
-                onClick={() => onReport(job)}
+                onClick={(e) => {e.stopPropagation(); onReport(job);}}
                 title="Reportar trabajo"
               >
                 🚩
@@ -224,6 +226,24 @@ const JobCard = ({ job, onApply, onReport, user }) => {
           {job.description}
         </p>
         
+        <div className="flex gap-2 mb-4 flex-wrap">
+          {job.job_type && (
+            <Badge variant="outline" className="text-xs">
+              {job.job_type === 'full-time' ? '⏰ Tiempo Completo' : 
+               job.job_type === 'part-time' ? '⏰ Tiempo Parcial' :
+               job.job_type === 'contract' ? '📋 Contrato' :
+               job.job_type === 'internship' ? '🎓 Prácticas' : '💼 Freelance'}
+            </Badge>
+          )}
+          {job.experience_level && (
+            <Badge variant="outline" className="text-xs">
+              {job.experience_level === 'entry' ? '👶 Entrada' :
+               job.experience_level === 'junior' ? '🌱 Junior' :
+               job.experience_level === 'mid' ? '⭐ Mid-Level' : '🏆 Senior'}
+            </Badge>
+          )}
+        </div>
+        
         {job.salary_range && (
           <p className="text-sm font-medium text-gray-900 mb-4">
             💰 {job.salary_range}
@@ -234,7 +254,7 @@ const JobCard = ({ job, onApply, onReport, user }) => {
           <Button 
             size="sm" 
             className="flex-1"
-            onClick={() => onApply(job, 'quick')}
+            onClick={(e) => {e.stopPropagation(); onApply(job, 'quick');}}
             disabled={!user || user.user_type !== 'candidate'}
           >
             Aplicar Rápido
@@ -242,7 +262,7 @@ const JobCard = ({ job, onApply, onReport, user }) => {
           <Button 
             size="sm" 
             variant="outline" 
-            onClick={() => onApply(job, 'standard')}
+            onClick={(e) => {e.stopPropagation(); onApply(job, 'standard');}}
             disabled={!user || user.user_type !== 'candidate'}
           >
             Aplicar Estándar
@@ -251,7 +271,7 @@ const JobCard = ({ job, onApply, onReport, user }) => {
             size="sm" 
             variant="outline" 
             className="text-orange-600 border-orange-600 hover:bg-orange-50"
-            onClick={() => onApply(job, 'premium')}
+            onClick={(e) => {e.stopPropagation(); onApply(job, 'premium');}}
             disabled={!user || user.user_type !== 'candidate'}
           >
             Premium
@@ -358,36 +378,93 @@ const ReportModal = ({ isOpen, onClose, job, user }) => {
 // Application Modal
 const ApplicationModal = ({ isOpen, onClose, job, applicationType, user }) => {
   const [message, setMessage] = useState('');
-  const [customData, setCustomData] = useState({});
+  const [customData, setCustomData] = useState({
+    fullName: user?.name || '',
+    email: user?.email || '',
+    phone: '',
+    linkedin: '',
+    cv: null,
+    about: ''
+  });
+  const [cvFileName, setCvFileName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Actualizar datos cuando cambia el usuario
+  useEffect(() => {
+    setCustomData(prev => ({
+      ...prev,
+      fullName: user?.name || '',
+      email: user?.email || ''
+    }));
+  }, [user, isOpen]);
+
+  const handleCVChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validar que sea PDF o documento
+      const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      if (!validTypes.includes(file.type)) {
+        toast.error('Por favor sube un archivo PDF o Word (.pdf, .doc, .docx)');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) { // 5MB
+        toast.error('El archivo no debe superar 5MB');
+        return;
+      }
+      setCustomData({...customData, cv: file});
+      setCvFileName(file.name);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user) return;
 
+    // Validar CV obligatorio
+    if (!customData.cv) {
+      toast.error('El CV es obligatorio para aplicar');
+      return;
+    }
+
+    // Validar datos básicos
+    if (!customData.fullName || !customData.email || !customData.phone) {
+      toast.error('Por favor completa: Nombre, Email y Teléfono');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const formData = new FormData();
       formData.append('user_id', user.id);
-      
-      const applicationData = {
-        job_id: job.id,
-        application_type: applicationType,
-        message: message || null,
-        custom_data: customData
-      };
-      
-      // Append application data as JSON
-      Object.keys(applicationData).forEach(key => {
-        if (applicationData[key] !== null && applicationData[key] !== undefined) {
-          formData.append(key, typeof applicationData[key] === 'object' ? 
-            JSON.stringify(applicationData[key]) : applicationData[key]);
+      formData.append('job_id', job.id);
+      formData.append('application_type', applicationType);
+      formData.append('fullName', customData.fullName);
+      formData.append('email', customData.email);
+      formData.append('phone', customData.phone);
+      formData.append('linkedin', customData.linkedin || '');
+      formData.append('about', customData.about);
+      formData.append('message', message || '');
+      formData.append('cv', customData.cv);
+
+      await axios.post(`${API}/jobs/${job.id}/apply`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
         }
       });
-
-      await axios.post(`${API}/jobs/${job.id}/apply`, formData);
+      
       toast.success('¡Aplicación enviada exitosamente!');
       onClose();
+      // Reset form
+      setCustomData({
+        fullName: user?.name || '',
+        email: user?.email || '',
+        phone: '',
+        linkedin: '',
+        cv: null,
+        about: ''
+      });
+      setCvFileName('');
+      setMessage('');
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Error al enviar la aplicación');
     } finally {
@@ -406,82 +483,165 @@ const ApplicationModal = ({ isOpen, onClose, job, applicationType, user }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{getModalTitle()}</DialogTitle>
         </DialogHeader>
         
-        <div className="mb-4">
-          <h4 className="font-medium">{job?.title}</h4>
+        <div className="mb-4 pb-4 border-b">
+          <h4 className="font-medium text-gray-900">{job?.title}</h4>
           <p className="text-sm text-gray-600">{job?.company_name}</p>
+          <p className="text-sm text-gray-500">📍 {job?.location}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {applicationType === 'quick' && (
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-sm text-blue-800">
-                Con la aplicación rápida, la empresa podrá contactarte directamente 
-                a tu email: <strong>{user?.email}</strong>
-              </p>
-            </div>
-          )}
-
-          {applicationType === 'standard' && (
+          {/* Datos Básicos - Obligatorios */}
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <p className="text-sm font-medium text-blue-900 mb-3">📋 Datos Básicos (Obligatorios)</p>
             <div className="space-y-3">
-              <Input
-                placeholder="Nombre completo"
-                onChange={(e) => setCustomData({...customData, fullName: e.target.value})}
-              />
-              <Input
-                placeholder="Teléfono"
-                onChange={(e) => setCustomData({...customData, phone: e.target.value})}
-              />
-              <Textarea
-                placeholder="Cuéntanos sobre ti y por qué te interesa este trabajo"
-                onChange={(e) => setCustomData({...customData, about: e.target.value})}
-              />
+              <div>
+                <label className="text-xs font-medium text-gray-700 block mb-1">Nombre Completo *</label>
+                <Input
+                  type="text"
+                  placeholder="Tu nombre completo"
+                  value={customData.fullName}
+                  onChange={(e) => setCustomData({...customData, fullName: e.target.value})}
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-700 block mb-1">Email *</label>
+                <Input
+                  type="email"
+                  placeholder="tu@email.com"
+                  value={customData.email}
+                  onChange={(e) => setCustomData({...customData, email: e.target.value})}
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-700 block mb-1">Teléfono *</label>
+                <Input
+                  type="tel"
+                  placeholder="+34 123 456 789"
+                  value={customData.phone}
+                  onChange={(e) => setCustomData({...customData, phone: e.target.value})}
+                  required
+                />
+              </div>
             </div>
-          )}
+          </div>
 
+          {/* CV - Obligatorio */}
+          <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+            <p className="text-sm font-medium text-red-900 mb-3">📄 Curriculum Vitae (Obligatorio)</p>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-gray-700 block">
+                Sube tu CV en formato PDF o Word
+              </label>
+              <div className="border-2 border-dashed border-red-300 rounded-lg p-4 text-center cursor-pointer hover:bg-red-100 transition">
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  onChange={handleCVChange}
+                  className="hidden"
+                  id={`cv-upload-${job?.id}`}
+                  required
+                />
+                <label htmlFor={`cv-upload-${job?.id}`} className="cursor-pointer block">
+                  <p className="text-sm text-gray-600">
+                    {cvFileName ? (
+                      <span className="text-green-600 font-medium">✅ {cvFileName}</span>
+                    ) : (
+                      <>
+                        <span className="text-red-600 font-medium">📎 Selecciona tu CV</span>
+                        <br />
+                        <span className="text-xs text-gray-500 mt-1">PDF o Word (máx. 5MB)</span>
+                      </>
+                    )}
+                  </p>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* LinkedIn - Opcional */}
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <p className="text-sm font-medium text-gray-700 mb-3">💼 LinkedIn (Opcional)</p>
+            <Input
+              type="url"
+              placeholder="https://linkedin.com/in/tuprofile"
+              value={customData.linkedin}
+              onChange={(e) => setCustomData({...customData, linkedin: e.target.value})}
+            />
+            <p className="text-xs text-gray-500 mt-2">Completa tu perfil para que el reclutador pueda conocerte mejor</p>
+          </div>
+
+          {/* Información Adicional */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-2">
+              ¿Por qué te interesa este trabajo?
+            </label>
+            <Textarea
+              placeholder="Cuéntanos qué te atrae de esta posición y por qué te consideras un buen candidato..."
+              value={customData.about}
+              onChange={(e) => setCustomData({...customData, about: e.target.value})}
+              className="min-h-24"
+            />
+          </div>
+
+          {/* Premium - Solo para tipo premium */}
           {applicationType === 'premium' && (
-            <div className="space-y-3">
-              <Input
-                placeholder="Nombre completo"
-                onChange={(e) => setCustomData({...customData, fullName: e.target.value})}
-              />
-              <Input
-                placeholder="Teléfono"
-                onChange={(e) => setCustomData({...customData, phone: e.target.value})}
-              />
-              <Textarea
-                placeholder="Cuéntanos sobre ti"
-                onChange={(e) => setCustomData({...customData, about: e.target.value})}
-              />
-              <Textarea
-                placeholder="Mensaje personal para el reclutador (incluido con Premium)"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-              />
-              <div className="bg-orange-50 p-4 rounded-lg">
+            <>
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-2">
+                  Mensaje Personal para el Reclutador ✨
+                </label>
+                <Textarea
+                  placeholder="Escribe un mensaje especial que acompañe tu aplicación y destaque tu candidatura..."
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  className="min-h-24"
+                />
+              </div>
+              <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
                 <p className="text-sm text-orange-800">
                   💎 <strong>Aplicación Premium ($5 USD)</strong><br/>
                   Tu aplicación será destacada y incluirá un mensaje personal directo al reclutador.
                 </p>
               </div>
+            </>
+          )}
+
+          {/* Info del tipo de aplicación */}
+          {applicationType === 'quick' && (
+            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <p className="text-xs text-blue-800">
+                ⚡ <strong>Aplicación Rápida</strong> - Tus datos y CV serán compartidos con la empresa para contactarte.
+              </p>
             </div>
           )}
 
-          <div className="flex gap-2">
+          {applicationType === 'standard' && (
+            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <p className="text-xs text-blue-800">
+                ✓ <strong>Aplicación Estándar</strong> - Tu perfil completo y CV serán revisados por la empresa.
+              </p>
+            </div>
+          )}
+
+          {/* Botones */}
+          <div className="flex gap-2 pt-4 border-t">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">
               Cancelar
             </Button>
             <Button 
               type="submit" 
-              disabled={isSubmitting}
+              disabled={isSubmitting || !customData.cv}
               className="flex-1"
             >
               {isSubmitting ? 'Enviando...' : 
-               applicationType === 'premium' ? 'Pagar y Aplicar' : 'Enviar Aplicación'}
+               applicationType === 'premium' ? 'Pagar y Aplicar ($5)' : 'Enviar Aplicación'}
             </Button>
           </div>
         </form>
@@ -490,10 +650,138 @@ const ApplicationModal = ({ isOpen, onClose, job, applicationType, user }) => {
   );
 };
 
+// Job Detail Modal Component
+const JobDetailModal = ({ isOpen, onClose, job, onApply, user }) => {
+  if (!job) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-2xl">{job.title}</DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          {/* Empresa */}
+          <div>
+            <p className="text-sm font-semibold text-gray-600">Empresa</p>
+            <p className="text-lg text-gray-900">{job.company_name}</p>
+          </div>
+
+          {/* Ubicación */}
+          <div>
+            <p className="text-sm font-semibold text-gray-600">📍 Ubicación</p>
+            <p className="text-gray-900">{job.location}</p>
+          </div>
+
+          {/* Salario */}
+          {job.salary_range && (
+            <div>
+              <p className="text-sm font-semibold text-gray-600">💰 Salario</p>
+              <p className="text-lg font-bold text-green-600">{job.salary_range}</p>
+            </div>
+          )}
+
+          {/* Tipo y Nivel */}
+          <div className="flex gap-4">
+            <div>
+              <p className="text-sm font-semibold text-gray-600">Tipo de Empleo</p>
+              <Badge className="mt-1">
+                {job.job_type === 'full-time' ? '⏰ Tiempo Completo' : 
+                 job.job_type === 'part-time' ? '⏰ Tiempo Parcial' :
+                 job.job_type === 'contract' ? '📋 Contrato' :
+                 job.job_type === 'internship' ? '🎓 Prácticas' : '💼 Freelance'}
+              </Badge>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-600">Nivel Requerido</p>
+              <Badge className="mt-1">
+                {job.experience_level === 'entry' ? '👶 Entrada' :
+                 job.experience_level === 'junior' ? '🌱 Junior' :
+                 job.experience_level === 'mid' ? '⭐ Mid-Level' : '🏆 Senior'}
+              </Badge>
+            </div>
+          </div>
+
+          {/* Descripción */}
+          <div>
+            <p className="text-sm font-semibold text-gray-600 mb-2">Descripción del Puesto</p>
+            <p className="text-gray-700 leading-relaxed">{job.description}</p>
+          </div>
+
+          {/* Requisitos */}
+          {job.requirements && (
+            <div>
+              <p className="text-sm font-semibold text-gray-600 mb-2">Requisitos</p>
+              <p className="text-gray-700">{job.requirements}</p>
+            </div>
+          )}
+
+          {/* Beneficios */}
+          {job.benefits && (
+            <div>
+              <p className="text-sm font-semibold text-gray-600 mb-2">Beneficios</p>
+              <p className="text-gray-700">{job.benefits}</p>
+            </div>
+          )}
+
+          {/* Fecha Límite */}
+          {job.deadline && (
+            <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+              <p className="text-sm font-semibold text-yellow-900">⏰ Fecha Límite para Aplicar</p>
+              <p className="text-yellow-900">{new Date(job.deadline).toLocaleDateString('es-ES')}</p>
+            </div>
+          )}
+
+          {/* Botones de Aplicación */}
+          <div className="grid grid-cols-3 gap-3 pt-4 border-t">
+            <Button 
+              className="w-full"
+              onClick={() => onApply(job, 'quick')}
+              disabled={!user || user.user_type !== 'candidate'}
+            >
+              Rápida
+            </Button>
+            <Button 
+              variant="outline"
+              className="w-full"
+              onClick={() => onApply(job, 'standard')}
+              disabled={!user || user.user_type !== 'candidate'}
+            >
+              Estándar
+            </Button>
+            <Button 
+              className="w-full text-orange-600 border-orange-600 hover:bg-orange-50"
+              variant="outline"
+              onClick={() => onApply(job, 'premium')}
+              disabled={!user || user.user_type !== 'candidate'}
+            >
+              Premium
+            </Button>
+          </div>
+
+          {!user && (
+            <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+              <p className="text-sm text-blue-900">👤 Debes iniciar sesión como candidato para aplicar</p>
+            </div>
+          )}
+
+          {user && user.user_type !== 'candidate' && (
+            <div className="bg-red-50 border border-red-200 p-3 rounded-lg">
+              <p className="text-sm text-red-900">❌ Solo los candidatos pueden aplicar a trabajos</p>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 // Main Home Component
 const Home = () => {
   const { user } = React.useContext(AuthContext);
-  const [jobs, setJobs] = useState([]);
+  const [allJobs, setAllJobs] = useState([]); // Todos los jobs sin filtrar
+  const [jobs, setJobs] = useState([]); // Jobs que se muestran (filtrados)
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [location, setLocation] = useState('');
@@ -502,26 +790,122 @@ const Home = () => {
   const [showApplication, setShowApplication] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [reportJob, setReportJob] = useState(null);
+  const [showJobDetail, setShowJobDetail] = useState(false);
 
   useEffect(() => {
-    fetchJobs();
+    // Cargar las ofertas de ejemplo directamente sin intentar llamar a API
+    loadSampleJobs();
   }, []);
 
-  const fetchJobs = async (searchTerm = '', locationTerm = '') => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (searchTerm) params.append('search', searchTerm);
-      if (locationTerm) params.append('location', locationTerm);
-      
-      const response = await axios.get(`${API}/jobs?${params}`);
-      setJobs(response.data);
-    } catch (error) {
-      toast.error('Error al cargar los trabajos');
-      console.error('Error fetching jobs:', error);
-    } finally {
-      setLoading(false);
+  const loadSampleJobs = () => {
+    const sampleJobs = [
+          {
+            title: 'Desarrollador Frontend Junior',
+            description: 'Buscamos un desarrollador frontend passionate sin experiencia previa pero con ganas de aprender. Trabajarás en proyectos reales con mentoring constante.',
+            location: 'Madrid, España',
+            requirements: 'Conocimiento de HTML, CSS, JavaScript. React es un plus.',
+            benefits: 'Flexibilidad horaria, capacitación continua, ambiente amigable',
+            salary_range: '€1200-€1500/mes',
+            job_type: 'full-time',
+            experience_level: 'entry',
+            company_name: 'TechStart Madrid',
+            deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          },
+          {
+            title: 'Asistente de Soporte Técnico',
+            description: 'Se busca persona para formar parte del equipo de soporte técnico. No requiere experiencia, proporcionamos toda la capacitación necesaria.',
+            location: 'Barcelona, España',
+            requirements: 'Comunicación clara, disposición para aprender, buen trato al cliente',
+            benefits: 'Formación completa, posibilidad de crecimiento, horario flexible',
+            salary_range: '€1000-€1300/mes',
+            job_type: 'full-time',
+            experience_level: 'entry',
+            company_name: 'CloudTech Solutions',
+            deadline: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          },
+          {
+            title: 'Community Manager Trainee',
+            description: 'Únete a nuestro equipo como Community Manager en formación. Aprenderás gestión de redes sociales desde cero con supervisión diaria.',
+            location: 'Valencia, España',
+            requirements: 'Pasión por redes sociales, creatividad, disponibilidad',
+            benefits: 'Mentoring directo, flexibilidad laboral, oportunidades de viaje',
+            salary_range: '€900-€1200/mes',
+            job_type: 'part-time',
+            experience_level: 'entry',
+            company_name: 'Digital Growth Agency',
+            deadline: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            id: 4
+          },
+          {
+            title: 'Data Entry Specialist',
+            description: 'Posición ideal para quienes buscan su primer trabajo. Entrada de datos y gestión básica de información con formación inicial.',
+            location: 'Madrid, España',
+            requirements: 'Atención al detalle, velocidad de escritura, responsabilidad',
+            benefits: 'Flexibilidad horaria, trabajo remoto posible, estabilidad',
+            salary_range: '€1100-€1400/mes',
+            job_type: 'full-time',
+            experience_level: 'entry',
+            company_name: 'Business Process Solutions',
+            deadline: new Date(Date.now() + 35 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            id: 5
+          },
+          {
+            title: 'Asistente de Marketing Digital',
+            description: 'Buscamos asistente con interés en marketing digital. No se requiere experiencia, aprenderás sobre email marketing, analytics y más.',
+            location: 'Remoto',
+            requirements: 'Interés en marketing, organización, creatividad',
+            benefits: 'Trabajo remoto 100%, capacitación continua, posibilidad de especialización',
+            salary_range: '€1000-€1250/mes',
+            job_type: 'full-time',
+            experience_level: 'entry',
+            company_name: 'MarketBridge',
+            deadline: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            id: 6
+          },
+          {
+            title: 'Asistente Administrativo',
+            description: 'Oportunidad para alguien sin experiencia de comenzar en el sector administrativo. Capacitación completa y mentoring.',
+            location: 'Bilbao, España',
+            requirements: 'Puntualidad, organización, disposición de aprender',
+            benefits: 'Ambiente estable, posibilidades de crecimiento, beneficios sociales',
+            salary_range: '€950-€1200/mes',
+            job_type: 'full-time',
+            experience_level: 'entry',
+            company_name: 'Corporativo Vasco SL',
+            deadline: new Date(Date.now() + 32 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            id: 7
+          }
+        ];
+        
+        // Asignar IDs a las ofertas
+        sampleJobs.forEach((job, index) => {
+          job.id = index + 1;
+        });
+
+        // Cargar las ofertas de ejemplo en el estado local
+        setAllJobs(sampleJobs);
+        setJobs(sampleJobs);
+        setLoading(false);
+  };
+
+  const fetchJobs = (searchTerm = '', locationTerm = '') => {
+    // En modo MVP sin backend, filtrar de los jobs almacenados (allJobs)
+    let filtered = allJobs;
+    
+    if (searchTerm) {
+      filtered = filtered.filter(job => 
+        job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        job.description.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
+    
+    if (locationTerm) {
+      filtered = filtered.filter(job => 
+        job.location.toLowerCase().includes(locationTerm.toLowerCase())
+      );
+    }
+    
+    setJobs(filtered);
   };
 
   const handleSearch = (e) => {
@@ -552,6 +936,27 @@ const Home = () => {
     
     setReportJob(job);
     setShowReport(true);
+  };
+
+  const handleViewJobDetail = (job) => {
+    setSelectedJob(job);
+    setShowJobDetail(true);
+  };
+
+  const handleApplyFromModal = (job, type) => {
+    if (!user) {
+      toast.error('Debes iniciar sesión para aplicar');
+      return;
+    }
+    if (user.user_type !== 'candidate') {
+      toast.error('Solo los candidatos pueden aplicar a trabajos');
+      return;
+    }
+    
+    setSelectedJob(job);
+    setApplicationType(type);
+    setShowApplication(true);
+    setShowJobDetail(false);
   };
 
   return (
@@ -634,12 +1039,22 @@ const Home = () => {
                 job={job}
                 onApply={handleApply}
                 onReport={handleReport}
+                onViewDetails={handleViewJobDetail}
                 user={user}
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* Job Detail Modal */}
+      <JobDetailModal
+        isOpen={showJobDetail}
+        onClose={() => setShowJobDetail(false)}
+        job={selectedJob}
+        onApply={handleApplyFromModal}
+        user={user}
+      />
 
       {/* Application Modal */}
       <ApplicationModal
@@ -673,14 +1088,19 @@ const CompanyDashboard = () => {
   const { user } = React.useContext(AuthContext);
   const [jobs, setJobs] = useState([]);
   const [showJobForm, setShowJobForm] = useState(false);
+  const [editingJob, setEditingJob] = useState(null);
   const [jobForm, setJobForm] = useState({
     title: '',
     description: '',
     location: '',
     requirements: '',
     benefits: '',
-    salary_range: ''
+    salary_range: '',
+    job_type: 'full-time',
+    experience_level: 'entry',
+    deadline: ''
   });
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (user?.user_type === 'company') {
@@ -690,11 +1110,17 @@ const CompanyDashboard = () => {
 
   const fetchCompanyJobs = async () => {
     try {
-      // This would need to be implemented in the backend
+      setLoading(true);
+      // This would need to be implemented in the backend to filter by company
       const response = await axios.get(`${API}/jobs`);
-      setJobs(response.data);
+      // Filter jobs by current user (company)
+      const companyJobs = response.data.filter(job => job.user_id === user?.id);
+      setJobs(companyJobs);
     } catch (error) {
+      toast.error('Error al cargar los trabajos');
       console.error('Error fetching company jobs:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -703,25 +1129,66 @@ const CompanyDashboard = () => {
     try {
       const formData = new FormData();
       formData.append('user_id', user.id);
+      formData.append('company_name', user.name);
       
       Object.keys(jobForm).forEach(key => {
         formData.append(key, jobForm[key]);
       });
 
-      await axios.post(`${API}/jobs`, formData);
-      toast.success('¡Trabajo publicado exitosamente!');
+      if (editingJob) {
+        // Update existing job
+        await axios.put(`${API}/jobs/${editingJob.id}`, formData);
+        toast.success('¡Trabajo actualizado exitosamente!');
+      } else {
+        // Create new job
+        await axios.post(`${API}/jobs`, formData);
+        toast.success('¡Trabajo publicado exitosamente!');
+      }
+      
       setShowJobForm(false);
+      setEditingJob(null);
       setJobForm({
         title: '',
         description: '',
         location: '',
         requirements: '',
         benefits: '',
-        salary_range: ''
+        salary_range: '',
+        job_type: 'full-time',
+        experience_level: 'entry',
+        deadline: ''
       });
       fetchCompanyJobs();
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Error al crear el trabajo');
+      toast.error(error.response?.data?.detail || 'Error al guardar el trabajo');
+    }
+  };
+
+  const handleEditJob = (job) => {
+    setEditingJob(job);
+    setJobForm({
+      title: job.title,
+      description: job.description,
+      location: job.location,
+      requirements: job.requirements || '',
+      benefits: job.benefits || '',
+      salary_range: job.salary_range || '',
+      job_type: job.job_type || 'full-time',
+      experience_level: job.experience_level || 'entry',
+      deadline: job.deadline || ''
+    });
+    setShowJobForm(true);
+  };
+
+  const handleDeleteJob = async (jobId) => {
+    if (window.confirm('¿Estás seguro de que deseas eliminar esta oferta?')) {
+      try {
+        await axios.delete(`${API}/jobs/${jobId}`);
+        toast.success('Trabajo eliminado exitosamente');
+        fetchCompanyJobs();
+      } catch (error) {
+        toast.error(error.response?.data?.detail || 'Error al eliminar el trabajo');
+      }
     }
   };
 
@@ -735,82 +1202,341 @@ const CompanyDashboard = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Panel de Empresa</h1>
-        <Button onClick={() => setShowJobForm(true)}>
-          Publicar Nuevo Trabajo
-        </Button>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Panel de Empresa</h1>
+              <p className="text-gray-600 mt-2">Gestiona tus ofertas de empleo</p>
+            </div>
+            <Button 
+              onClick={() => {
+                setEditingJob(null);
+                setJobForm({
+                  title: '',
+                  description: '',
+                  location: '',
+                  requirements: '',
+                  benefits: '',
+                  salary_range: '',
+                  job_type: 'full-time',
+                  experience_level: 'entry',
+                  deadline: ''
+                });
+                setShowJobForm(true);
+              }}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              + Publicar Nueva Oferta
+            </Button>
+          </div>
+        </div>
       </div>
 
-      {/* Job Creation Modal */}
-      <Dialog open={showJobForm} onOpenChange={setShowJobForm}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Publicar Nuevo Trabajo</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleCreateJob} className="space-y-4">
-            <Input
-              placeholder="Título del trabajo"
-              value={jobForm.title}
-              onChange={(e) => setJobForm({...jobForm, title: e.target.value})}
-              required
-            />
-            <Input
-              placeholder="Ubicación"
-              value={jobForm.location}
-              onChange={(e) => setJobForm({...jobForm, location: e.target.value})}
-              required
-            />
-            <Textarea
-              placeholder="Descripción del trabajo"
-              value={jobForm.description}
-              onChange={(e) => setJobForm({...jobForm, description: e.target.value})}
-              required
-            />
-            <Textarea
-              placeholder="Requisitos (opcional)"
-              value={jobForm.requirements}
-              onChange={(e) => setJobForm({...jobForm, requirements: e.target.value})}
-            />
-            <Textarea
-              placeholder="Beneficios (opcional)"
-              value={jobForm.benefits}
-              onChange={(e) => setJobForm({...jobForm, benefits: e.target.value})}
-            />
-            <Input
-              placeholder="Rango salarial (opcional)"
-              value={jobForm.salary_range}
-              onChange={(e) => setJobForm({...jobForm, salary_range: e.target.value})}
-            />
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={() => setShowJobForm(false)} className="flex-1">
-                Cancelar
-              </Button>
-              <Button type="submit" className="flex-1">
-                Publicar Trabajo
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Jobs List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {jobs.map((job) => (
-          <Card key={job.id}>
-            <CardHeader>
-              <CardTitle className="text-lg">{job.title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-600 mb-2">{job.location}</p>
-              <p className="text-sm mb-4 line-clamp-3">{job.description}</p>
-              <Badge variant="outline" className="text-green-600 border-green-600">
-                Activo
-              </Badge>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-gray-600 text-sm font-medium">Ofertas Activas</p>
+                <p className="text-3xl font-bold text-orange-600 mt-2">{jobs.length}</p>
+              </div>
             </CardContent>
           </Card>
-        ))}
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-gray-600 text-sm font-medium">Aplicaciones Totales</p>
+                <p className="text-3xl font-bold text-blue-600 mt-2">
+                  {jobs.reduce((total, job) => total + (job.applications_count || 0), 0)}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-gray-600 text-sm font-medium">Empresa</p>
+                <p className="text-lg font-bold text-gray-900 mt-2">{user?.name || 'Mi Empresa'}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Job Creation Modal */}
+        <Dialog open={showJobForm} onOpenChange={setShowJobForm}>
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {editingJob ? 'Editar Oferta' : 'Publicar Nueva Oferta'}
+              </DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleCreateJob} className="space-y-4">
+              {/* Titulo */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Título del Trabajo *
+                </label>
+                <Input
+                  placeholder="Ej: Desarrollador Junior"
+                  value={jobForm.title}
+                  onChange={(e) => setJobForm({...jobForm, title: e.target.value})}
+                  required
+                />
+              </div>
+
+              {/* Ubicación */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Ubicación *
+                </label>
+                <Input
+                  placeholder="Ej: Madrid, España"
+                  value={jobForm.location}
+                  onChange={(e) => setJobForm({...jobForm, location: e.target.value})}
+                  required
+                />
+              </div>
+
+              {/* Tipo de Trabajo y Nivel de Experiencia */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Tipo de Empleo
+                  </label>
+                  <Select 
+                    value={jobForm.job_type} 
+                    onValueChange={(value) => setJobForm({...jobForm, job_type: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="full-time">Tiempo Completo</SelectItem>
+                      <SelectItem value="part-time">Tiempo Parcial</SelectItem>
+                      <SelectItem value="contract">Contrato</SelectItem>
+                      <SelectItem value="internship">Prácticas</SelectItem>
+                      <SelectItem value="freelance">Freelance</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Nivel de Experiencia
+                  </label>
+                  <Select 
+                    value={jobForm.experience_level} 
+                    onValueChange={(value) => setJobForm({...jobForm, experience_level: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="entry">Entrada</SelectItem>
+                      <SelectItem value="junior">Junior</SelectItem>
+                      <SelectItem value="mid">Mid-Level</SelectItem>
+                      <SelectItem value="senior">Senior</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Descripción */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Descripción del Trabajo *
+                </label>
+                <Textarea
+                  placeholder="Describe la posición, responsabilidades principales..."
+                  value={jobForm.description}
+                  onChange={(e) => setJobForm({...jobForm, description: e.target.value})}
+                  required
+                  className="min-h-32"
+                />
+              </div>
+
+              {/* Requisitos */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Requisitos (opcional)
+                </label>
+                <Textarea
+                  placeholder="Habilidades, conocimientos o requisitos deseados"
+                  value={jobForm.requirements}
+                  onChange={(e) => setJobForm({...jobForm, requirements: e.target.value})}
+                  className="min-h-24"
+                />
+              </div>
+
+              {/* Beneficios */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Beneficios (opcional)
+                </label>
+                <Textarea
+                  placeholder="Beneficios, ventajas, oportunidades de crecimiento..."
+                  value={jobForm.benefits}
+                  onChange={(e) => setJobForm({...jobForm, benefits: e.target.value})}
+                  className="min-h-24"
+                />
+              </div>
+
+              {/* Rango Salarial y Deadline */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Rango Salarial (opcional)
+                  </label>
+                  <Input
+                    placeholder="Ej: €1500-€2000/mes"
+                    value={jobForm.salary_range}
+                    onChange={(e) => setJobForm({...jobForm, salary_range: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Fecha Límite (opcional)
+                  </label>
+                  <Input
+                    type="date"
+                    value={jobForm.deadline}
+                    onChange={(e) => setJobForm({...jobForm, deadline: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              {/* Botones */}
+              <div className="flex gap-2 pt-4">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    setShowJobForm(false);
+                    setEditingJob(null);
+                  }} 
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" className="flex-1 bg-orange-600 hover:bg-orange-700">
+                  {editingJob ? 'Actualizar Oferta' : 'Publicar Oferta'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Jobs List */}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i} className="animate-pulse">
+                <CardContent className="p-6">
+                  <div className="h-4 bg-gray-200 rounded mb-4"></div>
+                  <div className="h-3 bg-gray-200 rounded mb-4 w-2/3"></div>
+                  <div className="h-3 bg-gray-200 rounded mb-4"></div>
+                  <div className="flex gap-2">
+                    <div className="h-8 bg-gray-200 rounded flex-1"></div>
+                    <div className="h-8 bg-gray-200 rounded flex-1"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : jobs.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg mb-4">No has publicado ninguna oferta de empleo aún.</p>
+            <Button 
+              onClick={() => {
+                setEditingJob(null);
+                setJobForm({
+                  title: '',
+                  description: '',
+                  location: '',
+                  requirements: '',
+                  benefits: '',
+                  salary_range: '',
+                  job_type: 'full-time',
+                  experience_level: 'entry',
+                  deadline: ''
+                });
+                setShowJobForm(true);
+              }}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              Crear tu Primera Oferta
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {jobs.map((job) => (
+              <Card key={job.id} className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-lg text-gray-900">{job.title}</CardTitle>
+                      <p className="text-sm text-gray-600 mt-1">{job.location}</p>
+                    </div>
+                    <Badge className="bg-green-100 text-green-800">
+                      Activa
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-700 mb-4 line-clamp-2">{job.description}</p>
+                  
+                  <div className="flex gap-2 mb-4 flex-wrap">
+                    <Badge variant="outline" className="text-xs">
+                      {job.job_type === 'full-time' ? 'Tiempo Completo' : 
+                       job.job_type === 'part-time' ? 'Tiempo Parcial' :
+                       job.job_type === 'contract' ? 'Contrato' :
+                       job.job_type === 'internship' ? 'Prácticas' : 'Freelance'}
+                    </Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {job.experience_level === 'entry' ? 'Entrada' :
+                       job.experience_level === 'junior' ? 'Junior' :
+                       job.experience_level === 'mid' ? 'Mid-Level' : 'Senior'}
+                    </Badge>
+                    {job.salary_range && (
+                      <Badge variant="outline" className="text-xs">
+                        💰 {job.salary_range}
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div className="bg-gray-50 p-3 rounded mb-4">
+                    <p className="text-sm">
+                      <span className="text-gray-600">Aplicaciones: </span>
+                      <span className="font-bold text-orange-600">{job.applications_count || 0}</span>
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => handleEditJob(job)}
+                      className="flex-1"
+                    >
+                      Editar
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className="text-red-600 hover:text-red-700 border-red-200"
+                      onClick={() => handleDeleteJob(job.id)}
+                    >
+                      Eliminar
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
