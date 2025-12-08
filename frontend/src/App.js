@@ -29,6 +29,18 @@ const AuthProvider = ({ children }) => {
     const storedUser = localStorage.getItem('zeroxp_user');
     if (storedUser) {
       setUser(JSON.parse(storedUser));
+    } else {
+      // Create a demo candidate user if no user is stored
+      const demoUser = {
+        id: 'demo_001',
+        email: 'juan.perez@example.com',
+        name: 'Juan Pérez García',
+        user_type: 'candidate',
+        phone: '+34 612 345 678',
+        created_at: new Date().toISOString()
+      };
+      setUser(demoUser);
+      localStorage.setItem('zeroxp_user', JSON.stringify(demoUser));
     }
     setLoading(false);
   }, []);
