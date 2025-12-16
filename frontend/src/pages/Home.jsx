@@ -1,100 +1,272 @@
-import React, { useEffect } from 'react';
-import { toast } from 'react-hot-toast';
-import SearchBar from '../components/SearchBar.jsx';
-import JobCard from '../components/JobCard.jsx';
-import JobDetailModal from '../components/JobDetailModal.jsx';
-import ApplicationModal from '../components/ApplicationModal.jsx';
-import ReportModal from '../components/ReportModal.jsx';
-import { useJobsReducer } from '../hooks/useJobsReducer.js';
-import { Card, CardContent, Badge } from '../components/ui';
-import { useAuth } from '../context/AuthContext.jsx';
+import React, { useEffect } from "react";
+import { toast } from "react-hot-toast";
+import SearchBar from "../components/SearchBar.jsx";
+import JobCard from "../components/JobCard.jsx";
+import JobDetailModal from "../components/JobDetailModal.jsx";
+import ApplicationModal from "../components/ApplicationModal.jsx";
+import ReportModal from "../components/ReportModal.jsx";
+import { useJobsReducer } from "../hooks/useJobsReducer.js";
+import { Card, CardContent, Badge } from "../components/ui";
+import { useAuth } from "../context/AuthContext.jsx";
+import { mockJobs } from "../data/mockJobs";
+import { Sparkles, Briefcase, TrendingUp, Users } from "lucide-react";
 
 export default function Home() {
-  const { user } = useAuth(); // <-- usamos el contexto
+  const { user } = useAuth();
   const [state, dispatch] = useJobsReducer();
 
   useEffect(() => {
-    loadSampleJobs();
+    dispatch({ type: "SET_JOBS", payload: mockJobs });
   }, []);
-
-  const loadSampleJobs = () => {
-    const sampleJobs = [
-      { title: 'Desarrollador Frontend Junior', location: 'Madrid, España', description: '...', id:1, job_type:'full-time', experience_level:'entry', company_name:'TechStart Madrid', deadline:'2025-12-30'},
-      { title: 'Asistente de Soporte Técnico', location: 'Barcelona, España', description: '...', id:2, job_type:'full-time', experience_level:'entry', company_name:'CloudTech Solutions', deadline:'2025-12-25'},
-      { title: 'Community Manager Trainee', location: 'Valencia, España', description: '...', id:3, job_type:'part-time', experience_level:'entry', company_name:'Digital Growth Agency', deadline:'2025-12-20'},
-      { title: 'Data Entry Specialist', location: 'Madrid, España', description: '...', id:4, job_type:'full-time', experience_level:'entry', company_name:'Business Process Solutions', deadline:'2025-12-30'},
-    ];
-    dispatch({ type: 'SET_JOBS', payload: sampleJobs });
-  };
 
   const handleSearch = (e) => {
     e.preventDefault();
-    dispatch({ type: 'FILTER_JOBS', payload: { searchTerm: state.search, locationTerm: state.location } });
+    dispatch({
+      type: "FILTER_JOBS",
+      payload: {
+        searchTerm: state.search,
+        locationTerm: state.location,
+      },
+    });
   };
 
   const handleApply = (job, type) => {
-    if (!user) return toast.error('Debes iniciar sesión para aplicar');
-    if (user.user_type !== 'candidate') return toast.error('Solo candidatos pueden aplicar');
-    dispatch({ type: 'SET_SELECTED_JOB', payload: job });
-    dispatch({ type: 'SET_APPLICATION_TYPE', payload: type });
-    dispatch({ type: 'SHOW_APPLICATION_MODAL' });
+    if (!user) {
+      return toast.error("Debes iniciar sesión para aplicar");
+    }
+    if (user.user_type !== "candidate") {
+      return toast.error("Solo candidatos pueden aplicar");
+    }
+    dispatch({ type: "SET_SELECTED_JOB", payload: job });
+    dispatch({ type: "SET_APPLICATION_TYPE", payload: type });
+    dispatch({ type: "SHOW_APPLICATION_MODAL" });
   };
 
   const handleReport = (job) => {
-    if (!user) return toast.error('Debes iniciar sesión para reportar');
-    dispatch({ type: 'SHOW_REPORT_MODAL', payload: job });
+    if (!user) {
+      return toast.error("Debes iniciar sesión para reportar");
+    }
+    dispatch({ type: "SHOW_REPORT_MODAL", payload: job });
   };
 
   const handleViewDetails = (job) => {
-    dispatch({ type: 'SHOW_JOB_DETAIL', payload: job });
+    dispatch({ type: "SHOW_JOB_DETAIL", payload: job });
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Hero Section */}
-      <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6">Tu primer trabajo te está esperando</h1>
-          <p className="text-xl mb-8 opacity-90">Encuentra oportunidades diseñadas para personas sin experiencia</p>
-          <SearchBar 
-            search={state.search} location={state.location} 
-            setSearch={(v)=>dispatch({type:'SET_SEARCH',payload:v})} 
-            setLocation={(v)=>dispatch({type:'SET_LOCATION',payload:v})} 
-            onSearch={handleSearch} 
-          />
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+      {/* Hero Section Mejorado */}
+      <div className="hero-section relative bg-gradient-to-br from-orange-500 via-orange-600 to-red-600 text-white py-20 md:py-28 overflow-hidden">
+        {/* Patrón decorativo de fondo */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl transform translate-x-1/3 -translate-y-1/3" />
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl transform -translate-x-1/3 translate-y-1/3" />
+          <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-white rounded-full blur-3xl transform -translate-x-1/2 -translate-y-1/2 opacity-5" />
+        </div>
+
+        {/* Contenido del Hero */}
+        <div className="relative z-10 container-custom">
+          <div className="max-w-4xl mx-auto text-center space-y-8">
+            {/* Badge superior */}
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm border border-white/30">
+              <Sparkles className="w-4 h-4" />
+              <span className="text-sm font-semibold">
+                +1,000 empleos disponibles esta semana
+              </span>
+            </div>
+
+            {/* Título principal */}
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black leading-tight">
+              Tu primer trabajo te está{" "}
+              <span className="relative inline-block">
+                esperando
+                <svg
+                  className="absolute -bottom-2 left-0 w-full"
+                  height="12"
+                  viewBox="0 0 200 12"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M2 10C50 3 100 1 198 10"
+                    stroke="white"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    opacity="0.5"
+                  />
+                </svg>
+              </span>
+            </h1>
+
+            {/* Subtítulo */}
+            <p className="text-xl md:text-2xl text-white/90 leading-relaxed max-w-2xl mx-auto">
+              Conectamos talento joven con empresas que valoran tu potencial.
+              <strong className="font-bold"> Sin experiencia requerida.</strong>
+            </p>
+
+            {/* Stats rápidos */}
+            <div className="flex flex-wrap justify-center gap-6 md:gap-8 pt-4">
+              {[
+                { icon: Briefcase, label: "Empleos activos", value: "1,000+" },
+                { icon: Users, label: "Candidatos registrados", value: "5,000+" },
+                { icon: TrendingUp, label: "Tasa de éxito", value: "85%" },
+              ].map((stat, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center gap-3 px-4 py-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20"
+                >
+                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/20">
+                    <stat.icon className="w-5 h-5" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-2xl font-bold">{stat.value}</p>
+                    <p className="text-xs text-white/80">{stat.label}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* SearchBar */}
+            <div className="pt-6">
+              <SearchBar
+                search={state.search}
+                location={state.location}
+                setSearch={(v) => dispatch({ type: "SET_SEARCH", payload: v })}
+                setLocation={(v) =>
+                  dispatch({ type: "SET_LOCATION", payload: v })
+                }
+                onSearch={handleSearch}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Jobs Section */}
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900">Trabajos Disponibles</h2>
-          <Badge variant="outline" className="text-green-600 border-green-600">
-            {state.jobs.length} trabajos encontrados
-          </Badge>
+      <div className="container-custom py-16 md:py-20">
+        {/* Header de la sección */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-10">
+          <div>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+              Oportunidades destacadas
+            </h2>
+            <p className="text-gray-600">
+              Encuentra el trabajo perfecto para iniciar tu carrera profesional
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Badge
+              variant="outline"
+              className="text-green-600 border-green-600 bg-green-50 px-4 py-2 text-sm font-semibold"
+            >
+              ✨ {state.jobs.length} empleos disponibles
+            </Badge>
+          </div>
         </div>
 
+        {/* Loading State Mejorado */}
         {state.loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(4)].map((_, i)=>(
-              <Card key={i} className="animate-pulse"><CardContent className="p-6 h-40 bg-gray-200 rounded"></CardContent></Card>
+          <div className="jobs-grid">
+            {[...Array(6)].map((_, i) => (
+              <Card key={i} className="card-base animate-pulse">
+                <CardContent className="p-7 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="h-6 w-24 bg-gray-200 rounded-full" />
+                    <div className="h-4 w-16 bg-gray-200 rounded-full" />
+                  </div>
+                  <div className="h-6 w-3/4 bg-gray-200 rounded" />
+                  <div className="space-y-2">
+                    <div className="h-4 w-full bg-gray-200 rounded" />
+                    <div className="h-4 w-full bg-gray-200 rounded" />
+                  </div>
+                  <div className="h-4 w-full bg-gray-200 rounded" />
+                  <div className="h-4 w-2/3 bg-gray-200 rounded" />
+                  <div className="flex items-center justify-between pt-4">
+                    <div className="h-4 w-24 bg-gray-200 rounded" />
+                    <div className="h-10 w-28 bg-gray-200 rounded-lg" />
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
-        ) : state.jobs.length===0 ? (
-          <p className="text-center text-gray-500">No se encontraron trabajos.</p>
+        ) : state.jobs.length === 0 ? (
+          /* Estado vacío mejorado */
+          <div className="text-center py-16">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gray-100 mb-6">
+              <Briefcase className="w-10 h-10 text-gray-400" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">
+              No encontramos empleos
+            </h3>
+            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+              Intenta ajustar tus filtros de búsqueda o explora otras
+              ubicaciones para encontrar más oportunidades.
+            </p>
+            <button
+              onClick={() => {
+                dispatch({ type: "SET_SEARCH", payload: "" });
+                dispatch({ type: "SET_LOCATION", payload: "" });
+                dispatch({ type: "SET_JOBS", payload: mockJobs });
+              }}
+              className="btn-primary"
+            >
+              Ver todos los empleos
+            </button>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {state.jobs.map(job => (
-              <JobCard key={job.id} job={job} user={user} onApply={handleApply} onReport={handleReport} onViewDetails={handleViewDetails} />
+          /* Grid de Jobs */
+          <div className="jobs-grid">
+            {state.jobs.map((job) => (
+              <JobCard
+                key={job.id}
+                job={job}
+                onViewDetails={handleViewDetails}
+              />
             ))}
           </div>
         )}
 
-        {/* Modals */}
-        <JobDetailModal isOpen={state.showJobDetail} onClose={()=>dispatch({type:'HIDE_JOB_DETAIL'})} job={state.selectedJob} onApply={handleApply} user={user} />
-        <ApplicationModal isOpen={state.showApplication} onClose={()=>dispatch({type:'HIDE_APPLICATION_MODAL'})} job={state.selectedJob} applicationType={state.applicationType} user={user} />
-        <ReportModal isOpen={state.showReport} onClose={()=>dispatch({type:'HIDE_REPORT_MODAL'})} job={state.reportJob} user={user} />
+        {/* CTA Section */}
+        {state.jobs.length > 0 && (
+          <div className="mt-16 text-center">
+            <div className="inline-block bg-gradient-to-r from-orange-50 to-red-50 rounded-2xl p-8 md:p-12 border border-orange-200/50">
+              <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
+                ¿No encuentras lo que buscas?
+              </h3>
+              <p className="text-gray-600 mb-6 max-w-xl mx-auto">
+                Regístrate para recibir alertas personalizadas cuando
+                publiquemos empleos que coincidan con tus intereses.
+              </p>
+              <button className="btn-primary">
+                Crear alerta de empleo
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Modals */}
+      <JobDetailModal
+        isOpen={state.showJobDetail}
+        onClose={() => dispatch({ type: "HIDE_JOB_DETAIL" })}
+        job={state.selectedJob}
+        onApply={handleApply}
+        user={user}
+      />
+      <ApplicationModal
+        isOpen={state.showApplication}
+        onClose={() => dispatch({ type: "HIDE_APPLICATION_MODAL" })}
+        job={state.selectedJob}
+        applicationType={state.applicationType}
+        user={user}
+      />
+      <ReportModal
+        isOpen={state.showReport}
+        onClose={() => dispatch({ type: "HIDE_REPORT_MODAL" })}
+        job={state.reportJob}
+        user={user}
+      />
     </div>
   );
 }
