@@ -1,4 +1,4 @@
-# 🎯 TalentFirst
+# 🎯 Zero Xp
 
 > Portal de empleos exclusivo para desarrolladores junior sin experiencia
 
@@ -17,10 +17,10 @@
 Recién graduados en tecnología aplican a ofertas etiquetadas como "junior" pero que requieren 3-5 años de experiencia. Plataformas como LinkedIn e Indeed no filtran efectivamente por nivel de experiencia real.
 
 **La Solución:**  
-TalentFirst es una plataforma donde SOLO se publican ofertas para personas sin experiencia laboral previa. Las empresas son verificadas manualmente y los candidatos pueden aplicar con un solo clic.
+Zero Xp es una plataforma donde SOLO se publican ofertas para personas sin experiencia laboral previa. Las empresas son verificadas manualmente y los candidatos pueden aplicar con un solo clic.
 
 **Estado Actual:** 🚧 MVP en desarrollo activo  
-**Deployment Previsto:** Mediados de febrero 2025
+**Deployment Previsto:** Mediados de Marzo 2025
 
 ---
 
