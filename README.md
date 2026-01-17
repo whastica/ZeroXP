@@ -5,9 +5,8 @@
 [![Estado](https://img.shields.io/badge/estado-en%20desarrollo-yellow)]()
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2-green)]()
 [![React](https://img.shields.io/badge/React-18-blue)]()
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)]()
 
-[🌐 Demo en Vivo](https://talentfirst.com) • [📹 Video Demo](https://youtube.com/...) • [📧 Contacto](mailto:tu@email.com)
+[🌐 Demo en Vivo] • [📹 Video Demo](https://youtube.com/) 
 
 ---
 
@@ -20,7 +19,7 @@ Recién graduados en tecnología aplican a ofertas etiquetadas como "junior" per
 Zero Xp es una plataforma donde SOLO se publican ofertas para personas sin experiencia laboral previa. Las empresas son verificadas manualmente y los candidatos pueden aplicar con un solo clic.
 
 **Estado Actual:** 🚧 MVP en desarrollo activo  
-**Deployment Previsto:** Mediados de Marzo 2025
+**Deployment Previsto:** Finales de Abril 2025
 
 ---
 
@@ -41,7 +40,7 @@ Zero Xp es una plataforma donde SOLO se publican ofertas para personas sin exper
 - Deployment en Railway
 - Tests de integración (coverage >60%)
 
-### Roadmap 🗺️
+### Planing Roadmap 🗺️
 - Exportar reportes para empresas
 - API pública para partners
 - Métricas y analytics

@@ -1,5 +1,6 @@
 import React, { useEffect } from "react";
 import { toast } from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 import SearchBar from "../components/SearchBar.jsx";
 import JobCard from "../components/JobCard.jsx";
 import JobDetailModal from "../components/JobDetailModal.jsx";
@@ -9,10 +10,12 @@ import { useJobsReducer } from "../hooks/useJobsReducer.js";
 import { Card, CardContent, Badge } from "../components/ui";
 import { useAuth } from "../context/AuthContext.jsx";
 import { mockJobs } from "../data/mockJobs";
+import { addApplication, hasUserApplied } from "../data/mockApplications";
 import { Sparkles, Briefcase, TrendingUp, Users } from "lucide-react";
 
 export default function Home() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [state, dispatch] = useJobsReducer();
 
   useEffect(() => {
@@ -37,6 +40,12 @@ export default function Home() {
     if (user.user_type !== "candidate") {
       return toast.error("Solo candidatos pueden aplicar");
     }
+
+    // Verificar si ya aplicó a este trabajo
+    if (hasUserApplied(user.id, job.id)) {
+      return toast.error("Ya has aplicado a esta oferta");
+    }
+
     dispatch({ type: "SET_SELECTED_JOB", payload: job });
     dispatch({ type: "SET_APPLICATION_TYPE", payload: type });
     dispatch({ type: "SHOW_APPLICATION_MODAL" });
@@ -51,6 +60,48 @@ export default function Home() {
 
   const handleViewDetails = (job) => {
     dispatch({ type: "SHOW_JOB_DETAIL", payload: job });
+  };
+
+  // Función que se ejecuta cuando se envía exitosamente la aplicación
+  const handleApplicationSubmit = (applicationData) => {
+    try {
+      // Crear la aplicación en el sistema
+      const newApplication = addApplication({
+        userId: user.id,
+        jobId: state.selectedJob.id,
+        applicationMethod: state.applicationType,
+        data: applicationData
+      });
+
+      // Cerrar el modal
+      dispatch({ type: "HIDE_APPLICATION_MODAL" });
+
+      // Mostrar mensaje de éxito con opción de ver aplicaciones
+      toast.success(
+        (t) => (
+          <div>
+            <p className="font-semibold mb-2">
+              ¡Aplicación enviada exitosamente!
+            </p>
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                navigate('/applications');
+              }}
+              className="text-orange-600 hover:text-orange-700 font-medium text-sm underline"
+            >
+              Ver mis aplicaciones →
+            </button>
+          </div>
+        ),
+        { duration: 5000 }
+      );
+
+      return newApplication;
+    } catch (error) {
+      console.error("Error al enviar aplicación:", error);
+      toast.error("Error al enviar la aplicación. Intenta de nuevo.");
+    }
   };
 
   return (
@@ -154,7 +205,6 @@ export default function Home() {
               Encuentra el trabajo perfecto para iniciar tu carrera profesional
             </p>
           </div>
-
           <div className="flex items-center gap-3">
             <Badge
               variant="outline"
@@ -254,13 +304,16 @@ export default function Home() {
         onApply={handleApply}
         user={user}
       />
+      
       <ApplicationModal
         isOpen={state.showApplication}
         onClose={() => dispatch({ type: "HIDE_APPLICATION_MODAL" })}
         job={state.selectedJob}
         applicationType={state.applicationType}
         user={user}
+        onSubmit={handleApplicationSubmit}
       />
+      
       <ReportModal
         isOpen={state.showReport}
         onClose={() => dispatch({ type: "HIDE_REPORT_MODAL" })}

@@ -12,7 +12,6 @@ import {
   FileText,
   Building2,
   Home,
-  Search,
 } from "lucide-react";
 
 export default function Navbar() {
@@ -37,10 +36,7 @@ export default function Navbar() {
       <div className="container-custom">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link
-            to="/"
-            className="flex items-center gap-2 group"
-          >
+          <Link to="/" className="flex items-center gap-2 group">
             <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 shadow-lg shadow-orange-500/30 group-hover:scale-110 transition-transform duration-300">
               <Briefcase className="w-5 h-5 text-white" />
             </div>
@@ -63,32 +59,22 @@ export default function Navbar() {
               Inicio
             </Link>
 
-            <Link
-              to="/jobs"
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                isActive("/jobs")
-                  ? "bg-orange-50 text-orange-600"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-              }`}
-            >
-              <Search className="w-4 h-4" />
-              Buscar empleos
-            </Link>
-
+            {/* Mostrar "Mis aplicaciones" solo para candidatos en navbar desktop */}
             {isCandidate() && (
               <Link
-                to="/saved-jobs"
+                to="/applications"
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  isActive("/saved-jobs")
+                  isActive("/applications")
                     ? "bg-orange-50 text-orange-600"
                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                 }`}
               >
-                <BookmarkIcon className="w-4 h-4" />
-                Guardados
+                <FileText className="w-4 h-4" />
+                Mis aplicaciones
               </Link>
             )}
 
+            {/* Mostrar "Mis ofertas" para empresas */}
             {isCompany() && (
               <Link
                 to="/my-jobs"
@@ -244,47 +230,19 @@ export default function Navbar() {
                 Inicio
               </Link>
 
-              <Link
-                to="/jobs"
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                  isActive("/jobs")
-                    ? "bg-orange-50 text-orange-600"
-                    : "text-gray-600 hover:bg-gray-50"
-                }`}
-                onClick={() => setShowMobileMenu(false)}
-              >
-                <Search className="w-5 h-5" />
-                Buscar empleos
-              </Link>
-
               {isCandidate() && (
-                <>
-                  <Link
-                    to="/saved-jobs"
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                      isActive("/saved-jobs")
-                        ? "bg-orange-50 text-orange-600"
-                        : "text-gray-600 hover:bg-gray-50"
-                    }`}
-                    onClick={() => setShowMobileMenu(false)}
-                  >
-                    <BookmarkIcon className="w-5 h-5" />
-                    Guardados
-                  </Link>
-
-                  <Link
-                    to="/applications"
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                      isActive("/applications")
-                        ? "bg-orange-50 text-orange-600"
-                        : "text-gray-600 hover:bg-gray-50"
-                    }`}
-                    onClick={() => setShowMobileMenu(false)}
-                  >
-                    <FileText className="w-5 h-5" />
-                    Mis aplicaciones
-                  </Link>
-                </>
+                <Link
+                  to="/applications"
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                    isActive("/applications")
+                      ? "bg-orange-50 text-orange-600"
+                      : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                  onClick={() => setShowMobileMenu(false)}
+                >
+                  <FileText className="w-5 h-5" />
+                  Mis aplicaciones
+                </Link>
               )}
 
               {isCompany() && (

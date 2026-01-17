@@ -11,13 +11,21 @@ import {
 
 // Components
 import Navbar from "./components/Navbar";
+
+// Pages - Public
 import Home from "./pages/Home";
 import AuthPage from "./pages/AuthPage";
+
+// Pages - Candidates
+import MyApplications from "./pages/MyApplications";
 // import SavedJobs from "./pages/SavedJobs";
-// import Applications from "./pages/Applications";
 // import Profile from "./pages/Profile";
-// import MyJobs from "./pages/MyJobs"; // Para empresas
 // import Settings from "./pages/Settings";
+
+// Pages - Companies
+import CompaniesPage from "./pages/CompaniesPage";
+import CompanyDashboard from "./pages/CompanyDashboard";
+import CompanyOffersPage from "./pages/CompanyOffersPage";
 
 function App() {
   return (
@@ -50,13 +58,10 @@ function App() {
               },
             }}
           />
-
           <Navbar />
-
           <Routes>
-            {/* Rutas públicas */}
+            {/* ==================== RUTAS PÚBLICAS ==================== */}
             <Route path="/" element={<Home />} />
-
             <Route
               path="/auth"
               element={
@@ -66,7 +71,10 @@ function App() {
               }
             />
 
-            {/* Rutas protegidas (cualquier usuario autenticado) */}
+            {/* Directorio de empresas (accesible para todos) */}
+            <Route path="/companies" element={<CompaniesPage />} />
+
+            {/* ==================== RUTAS PROTEGIDAS (TODOS) ==================== */}
             <Route
               path="/profile"
               element={
@@ -79,7 +87,6 @@ function App() {
                 </ProtectedRoute>
               }
             />
-
             <Route
               path="/settings"
               element={
@@ -93,7 +100,7 @@ function App() {
               }
             />
 
-            {/* Rutas solo para candidatos */}
+            {/* ==================== RUTAS SOLO CANDIDATOS ==================== */}
             <Route
               path="/saved-jobs"
               element={
@@ -107,34 +114,49 @@ function App() {
               }
             />
 
+            {/* Mis Aplicaciones */}
             <Route
               path="/applications"
               element={
                 <CandidateRoute>
-                  {/* <Applications /> */}
-                  <div className="container-custom py-20 text-center">
-                    <h1 className="text-3xl font-bold">Mis Aplicaciones</h1>
-                    <p className="text-gray-600 mt-4">Página en construcción</p>
-                  </div>
+                  <MyApplications />
                 </CandidateRoute>
               }
             />
 
-            {/* Rutas solo para empresas */}
+            {/* ==================== RUTAS SOLO EMPRESAS ==================== */}
+            
+            {/* Dashboard de empresa */}
             <Route
-              path="/my-jobs"
+              path="/company/dashboard"
               element={
                 <CompanyRoute>
-                  {/* <MyJobs /> */}
-                  <div className="container-custom py-20 text-center">
-                    <h1 className="text-3xl font-bold">Mis Ofertas de Empleo</h1>
-                    <p className="text-gray-600 mt-4">Página en construcción</p>
-                  </div>
+                  <CompanyDashboard />
                 </CompanyRoute>
               }
             />
 
-            {/* 404 Not Found */}
+            {/* Gestión de ofertas de la empresa */}
+            <Route
+              path="/company/offers"
+              element={
+                <CompanyRoute>
+                  <CompanyOffersPage />
+                </CompanyRoute>
+              }
+            />
+
+            {/* Alias para compatibilidad - redirige a /company/offers */}
+            <Route
+              path="/my-jobs"
+              element={
+                <CompanyRoute>
+                  <CompanyOffersPage />
+                </CompanyRoute>
+              }
+            />
+
+            {/* ==================== 404 NOT FOUND ==================== */}
             <Route
               path="*"
               element={
