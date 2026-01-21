@@ -1,173 +1,91 @@
-import { useState } from 'react';
+import { useState } from "react";
 
-export const useAuthForm = (isLogin, userType) => {
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function useAuthForm({ isLogin, userType }) {
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    name: '',
-    companyName: '',
+    email: "",
+    password: "",
+    name: "",
+    companyName: "",
   });
 
   const [errors, setErrors] = useState({});
-  const [touched, setTouched] = useState({});
 
-  // Validación de email
-  const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email) return 'El correo es requerido';
-    if (!emailRegex.test(email)) return 'Ingresa un correo válido';
-    return '';
-  };
-
-  // Validación de contraseña
-  const validatePassword = (password) => {
-    if (!password) return 'La contraseña es requerida';
-    if (password.length < 6) return 'Mínimo 6 caracteres';
-    return '';
-  };
-
-  // Validación de nombre
-  const validateName = (name) => {
-    if (!name) return 'El nombre es requerido';
-    if (name.length < 2) return 'Mínimo 2 caracteres';
-    return '';
-  };
-
-  // Validación de nombre de empresa
-  const validateCompanyName = (companyName) => {
-    if (!companyName) return 'El nombre de la empresa es requerido';
-    if (companyName.length < 2) return 'Mínimo 2 caracteres';
-    return '';
-  };
-
-  // Validar campo específico
-  const validateField = (name, value) => {
-    let error = '';
-
-    switch (name) {
-      case 'email':
-        error = validateEmail(value);
-        break;
-      case 'password':
-        error = validatePassword(value);
-        break;
-      case 'name':
-        error = validateName(value);
-        break;
-      case 'companyName':
-        error = validateCompanyName(value);
-        break;
-      default:
-        break;
-    }
-
-    return error;
-  };
-
-  // Validar todo el formulario
+  // Validación completa, se puede usar al enviar
   const validateForm = () => {
     const newErrors = {};
 
-    // Email y password siempre son requeridos
-    newErrors.email = validateEmail(formData.email);
-    newErrors.password = validatePassword(formData.password);
+    // Email
+    if (!formData.email) {
+      newErrors.email = "Email requerido";
+    } else if (!EMAIL_REGEX.test(formData.email)) {
+      newErrors.email = "Email inválido";
+    }
 
-    // Validaciones adicionales para registro
+    // Password
+    if (!formData.password) {
+      newErrors.password = "Contraseña requerida";
+    } else if (formData.password.length < 6) {
+      newErrors.password = "Mínimo 6 caracteres";
+    }
+
+    // Registro
     if (!isLogin) {
-      newErrors.name = validateName(formData.name);
-      
-      if (userType === 'company') {
-        newErrors.companyName = validateCompanyName(formData.companyName);
+      if (userType === "candidate" && !formData.name) {
+        newErrors.name = "Nombre requerido";
+      }
+      if (userType === "company" && !formData.companyName) {
+        newErrors.companyName = "Nombre de empresa requerido";
       }
     }
 
-    // Filtrar errores vacíos
-    const filteredErrors = Object.entries(newErrors).reduce((acc, [key, value]) => {
-      if (value) acc[key] = value;
-      return acc;
-    }, {});
-
-    setErrors(filteredErrors);
-    return Object.keys(filteredErrors).length === 0;
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  // Manejar cambio de input
+  // Manejo de cambios con validación en tiempo real
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
 
-    // Validar en tiempo real si el campo ya fue tocado
-    if (touched[name]) {
-      const error = validateField(name, value);
-      setErrors(prev => ({
-        ...prev,
-        [name]: error,
-      }));
-    }
-  };
+    setFormData((prev) => ({ ...prev, [name]: value }));
 
-  // Manejar blur (cuando el usuario sale del campo)
-  const handleBlur = (e) => {
-    const { name, value } = e.target;
-    
-    setTouched(prev => ({
-      ...prev,
-      [name]: true,
-    }));
+    // VALIDACIÓN EN TIEMPO REAL
+    setErrors((prev) => {
+      const newErrors = { ...prev };
 
-    const error = validateField(name, value);
-    setErrors(prev => ({
-      ...prev,
-      [name]: error,
-    }));
-  };
+      if (name === "email") {
+        if (!value) newErrors.email = "Email requerido";
+        else if (!EMAIL_REGEX.test(value)) newErrors.email = "Email inválido";
+        else delete newErrors.email;
+      }
 
-  // Resetear formulario
-  const resetForm = () => {
-    setFormData({
-      email: '',
-      password: '',
-      name: '',
-      companyName: '',
+      if (name === "password") {
+        if (!value) newErrors.password = "Contraseña requerida";
+        else if (value.length < 6) newErrors.password = "Mínimo 6 caracteres";
+        else delete newErrors.password;
+      }
+
+      if (!isLogin) {
+        if (name === "name") {
+          if (!value && userType === "candidate") newErrors.name = "Nombre requerido";
+          else delete newErrors.name;
+        }
+
+        if (name === "companyName") {
+          if (!value && userType === "company") newErrors.companyName = "Nombre de empresa requerido";
+          else delete newErrors.companyName;
+        }
+      }
+
+      return newErrors;
     });
-    setErrors({});
-    setTouched({});
-  };
-
-  // Llenar credenciales de demo
-  const fillDemoCredentials = (type) => {
-    if (type === 'candidate') {
-      setFormData({
-        email: 'juan@example.com',
-        password: 'password123',
-        name: '',
-        companyName: '',
-      });
-    } else {
-      setFormData({
-        email: 'contacto@techcorp.com',
-        password: 'password123',
-        name: '',
-        companyName: '',
-      });
-    }
-    setErrors({});
-    setTouched({});
   };
 
   return {
     formData,
     errors,
-    touched,
     handleChange,
-    handleBlur,
     validateForm,
-    resetForm,
-    fillDemoCredentials,
-    setFormData,
   };
-};
+}

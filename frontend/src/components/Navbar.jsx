@@ -8,7 +8,6 @@ import {
   Menu,
   X,
   Settings,
-  BookmarkIcon,
   FileText,
   Building2,
   Home,
@@ -23,13 +22,21 @@ export default function Navbar() {
 
   const handleLogout = () => {
     logout();
-    navigate("/auth");
+    navigate("/auth", { state: { mode: "login" } });
     setShowUserMenu(false);
   };
 
-  const isActive = (path) => {
-    return location.pathname === path;
+  const handleLogin = () => {
+    navigate("/auth", { state: { mode: "login" } });
+    setShowMobileMenu(false);
   };
+
+  const handleRegister = () => {
+    navigate("/auth", { state: { mode: "register" } });
+    setShowMobileMenu(false);
+  };
+
+  const isActive = (path) => location.pathname === path;
 
   return (
     <nav className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
@@ -59,7 +66,6 @@ export default function Navbar() {
               Inicio
             </Link>
 
-            {/* Mostrar "Mis aplicaciones" solo para candidatos en navbar desktop */}
             {isCandidate() && (
               <Link
                 to="/applications"
@@ -74,7 +80,6 @@ export default function Navbar() {
               </Link>
             )}
 
-            {/* Mostrar "Mis ofertas" para empresas */}
             {isCompany() && (
               <Link
                 to="/my-jobs"
@@ -99,11 +104,7 @@ export default function Navbar() {
                   className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-gray-50 transition-all duration-200"
                 >
                   <img
-                    src={
-                      isCandidate()
-                        ? user.profile.avatar
-                        : user.profile.logo
-                    }
+                    src={isCandidate() ? user.profile.avatar : user.profile.logo}
                     alt="Avatar"
                     className="w-9 h-9 rounded-full border-2 border-orange-500"
                   />
@@ -184,18 +185,21 @@ export default function Navbar() {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <Link
-                  to="/auth"
+                {/* Iniciar sesión - Desktop */}
+                <button
+                  onClick={handleLogin}
                   className="hidden sm:block px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
                 >
                   Iniciar sesión
-                </Link>
-                <Link
-                  to="/auth"
+                </button>
+
+                {/* Registrarse - Desktop */}
+                <button
+                  onClick={handleRegister}
                   className="px-5 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-orange-500 to-red-500 shadow-md shadow-orange-500/30 hover:shadow-lg hover:shadow-orange-500/40 hover:scale-105 transition-all duration-300"
                 >
                   Registrarse
-                </Link>
+                </button>
               </div>
             )}
 
@@ -261,14 +265,13 @@ export default function Navbar() {
               )}
 
               {!user && (
-                <Link
-                  to="/auth"
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors sm:hidden"
-                  onClick={() => setShowMobileMenu(false)}
+                <button
+                  onClick={handleLogin}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors w-full text-left sm:hidden"
                 >
                   <User className="w-5 h-5" />
                   Iniciar sesión
-                </Link>
+                </button>
               )}
             </div>
           </div>
