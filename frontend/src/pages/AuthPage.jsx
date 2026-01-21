@@ -17,6 +17,9 @@ import {
   Users,
   Loader2,
   AlertCircle,
+  Shield,
+  ShieldAlert,
+  ShieldCheck,
 } from "lucide-react";
 
 export default function AuthPage() {
@@ -24,7 +27,10 @@ export default function AuthPage() {
   const [userType, setUserType] = useState("candidate");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState("");
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
+  
   const { login, register } = useAuth();
   const navigate = useNavigate();
 
@@ -39,34 +45,73 @@ export default function AuthPage() {
     fillDemoCredentials,
   } = useAuthForm(isLogin, userType);
 
+  // Función para calcular la fuerza de la contraseña
+  const calculatePasswordStrength = (password) => {
+    if (!password) return { strength: 0, label: "", color: "", icon: ShieldAlert, checks: {} };
+    
+    let strength = 0;
+    const checks = {
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /[0-9]/.test(password),
+      special: /[^A-Za-z0-9]/.test(password),
+    };
+
+    if (checks.length) strength += 20;
+    if (checks.uppercase) strength += 20;
+    if (checks.lowercase) strength += 20;
+    if (checks.number) strength += 20;
+    if (checks.special) strength += 20;
+
+    let label = "";
+    let color = "";
+    let icon = ShieldAlert;
+
+    if (strength <= 40) {
+      label = "Débil";
+      color = "bg-red-500";
+      icon = ShieldAlert;
+    } else if (strength <= 60) {
+      label = "Media";
+      color = "bg-yellow-500";
+      icon = Shield;
+    } else if (strength <= 80) {
+      label = "Fuerte";
+      color = "bg-blue-500";
+      icon = ShieldCheck;
+    } else {
+      label = "Muy fuerte";
+      color = "bg-green-500";
+      icon = ShieldCheck;
+    }
+
+    return { strength, label, color, icon, checks };
+  };
+
+  const passwordStrength = calculatePasswordStrength(formData.password);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validar formulario
     if (!validateForm()) {
       toast.error("Por favor corrige los errores en el formulario");
       return;
     }
 
     setIsLoading(true);
-
-    // Simular delay de red
     await new Promise((resolve) => setTimeout(resolve, 800));
 
     try {
       if (isLogin) {
-        // Login
         const success = login(formData.email, formData.password);
         if (success) {
-          toast.success("¡Bienvenido de nuevo!", {
-            icon: "👋",
-          });
+          toast.success("¡Bienvenido de nuevo!", { icon: "👋" });
           navigate("/");
         } else {
           toast.error("Credenciales inválidas. Intenta con los usuarios de prueba.");
         }
       } else {
-        // Registro
         const userData = {
           email: formData.email,
           password: formData.password,
@@ -77,9 +122,7 @@ export default function AuthPage() {
 
         const result = register(userData);
         if (result.success) {
-          toast.success("¡Cuenta creada exitosamente!", {
-            icon: "🎉",
-          });
+          toast.success("¡Cuenta creada exitosamente!", { icon: "🎉" });
           navigate("/");
         } else {
           toast.error(result.message || "Error al crear la cuenta");
@@ -90,6 +133,27 @@ export default function AuthPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handlePasswordRecovery = async (e) => {
+    e.preventDefault();
+    
+    if (!recoveryEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recoveryEmail)) {
+      toast.error("Por favor ingresa un correo válido");
+      return;
+    }
+
+    setRecoveryLoading(true);
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    toast.success("Se ha enviado un correo con instrucciones para recuperar tu contraseña", {
+      icon: "📧",
+      duration: 4000,
+    });
+
+    setRecoveryLoading(false);
+    setShowRecoveryModal(false);
+    setRecoveryEmail("");
   };
 
   const handleTabChange = (newIsLogin) => {
@@ -104,16 +168,81 @@ export default function AuthPage() {
     });
   };
 
+  const PasswordStrengthIcon = passwordStrength.icon;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-red-50 flex items-center justify-center p-4">
-      {/* Patrón decorativo de fondo */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 right-0 w-96 h-96 bg-orange-200 rounded-full blur-3xl opacity-20 transform translate-x-1/2 -translate-y-1/2" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-red-200 rounded-full blur-3xl opacity-20 transform -translate-x-1/2 translate-y-1/2" />
       </div>
 
+      {/* Modal de Recuperación */}
+      {showRecoveryModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 animate-scale-in">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center">
+                <Mail className="w-6 h-6 text-orange-600" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Recuperar contraseña</h2>
+                <p className="text-sm text-gray-600">Te enviaremos instrucciones por correo</p>
+              </div>
+            </div>
+
+            <form onSubmit={handlePasswordRecovery} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Correo electrónico
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="email"
+                    value={recoveryEmail}
+                    onChange={(e) => setRecoveryEmail(e.target.value)}
+                    placeholder="correo@ejemplo.com"
+                    disabled={recoveryLoading}
+                    className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:outline-none transition-all disabled:opacity-50"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRecoveryModal(false);
+                    setRecoveryEmail("");
+                  }}
+                  disabled={recoveryLoading}
+                  className="flex-1 py-3 px-4 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-all disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={recoveryLoading}
+                  className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {recoveryLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Enviando...</span>
+                    </>
+                  ) : (
+                    "Enviar"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="relative w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-        {/* Panel izquierdo - Información */}
+        {/* Panel izquierdo */}
         <div className="hidden lg:flex flex-col justify-center space-y-8 p-8">
           <div>
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-100 border border-orange-200 mb-6 animate-fade-in">
@@ -132,7 +261,6 @@ export default function AuthPage() {
             </p>
           </div>
 
-          {/* Features */}
           <div className="space-y-4">
             {[
               {
@@ -160,12 +288,8 @@ export default function AuthPage() {
                   <feature.icon className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-900 mb-1">
-                    {feature.title}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    {feature.description}
-                  </p>
+                  <h3 className="font-bold text-gray-900 mb-1">{feature.title}</h3>
+                  <p className="text-sm text-gray-600">{feature.description}</p>
                 </div>
               </div>
             ))}
@@ -175,15 +299,13 @@ export default function AuthPage() {
         {/* Panel derecho - Formulario */}
         <div className="relative animate-scale-in">
           <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-8 md:p-10">
-            {/* Tabs Login/Registro */}
+            {/* Tabs */}
             <div className="flex gap-2 p-1 bg-gray-100 rounded-xl mb-8">
               <button
                 onClick={() => handleTabChange(true)}
                 disabled={isLoading}
                 className={`flex-1 py-3 px-4 rounded-lg font-semibold text-sm transition-all duration-300 ${
-                  isLogin
-                    ? "bg-white text-gray-900 shadow-md"
-                    : "text-gray-600 hover:text-gray-900"
+                  isLogin ? "bg-white text-gray-900 shadow-md" : "text-gray-600 hover:text-gray-900"
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 Iniciar sesión
@@ -192,16 +314,14 @@ export default function AuthPage() {
                 onClick={() => handleTabChange(false)}
                 disabled={isLoading}
                 className={`flex-1 py-3 px-4 rounded-lg font-semibold text-sm transition-all duration-300 ${
-                  !isLogin
-                    ? "bg-white text-gray-900 shadow-md"
-                    : "text-gray-600 hover:text-gray-900"
+                  !isLogin ? "bg-white text-gray-900 shadow-md" : "text-gray-600 hover:text-gray-900"
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 Registrarse
               </button>
             </div>
 
-            {/* Selector de tipo de usuario (solo en registro) */}
+            {/* Selector tipo usuario */}
             {!isLogin && (
               <div className="mb-6 animate-fade-in">
                 <label className="block text-sm font-semibold text-gray-700 mb-3">
@@ -218,20 +338,12 @@ export default function AuthPage() {
                         : "border-gray-200 hover:border-gray-300"
                     } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
-                    <User
-                      className={`w-6 h-6 mx-auto mb-2 transition-colors ${
-                        userType === "candidate"
-                          ? "text-orange-600"
-                          : "text-gray-400"
-                      }`}
-                    />
-                    <p
-                      className={`text-sm font-semibold ${
-                        userType === "candidate"
-                          ? "text-orange-600"
-                          : "text-gray-600"
-                      }`}
-                    >
+                    <User className={`w-6 h-6 mx-auto mb-2 transition-colors ${
+                      userType === "candidate" ? "text-orange-600" : "text-gray-400"
+                    }`} />
+                    <p className={`text-sm font-semibold ${
+                      userType === "candidate" ? "text-orange-600" : "text-gray-600"
+                    }`}>
                       Candidato
                     </p>
                   </button>
@@ -245,20 +357,12 @@ export default function AuthPage() {
                         : "border-gray-200 hover:border-gray-300"
                     } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
-                    <Building2
-                      className={`w-6 h-6 mx-auto mb-2 transition-colors ${
-                        userType === "company"
-                          ? "text-orange-600"
-                          : "text-gray-400"
-                      }`}
-                    />
-                    <p
-                      className={`text-sm font-semibold ${
-                        userType === "company"
-                          ? "text-orange-600"
-                          : "text-gray-600"
-                      }`}
-                    >
+                    <Building2 className={`w-6 h-6 mx-auto mb-2 transition-colors ${
+                      userType === "company" ? "text-orange-600" : "text-gray-400"
+                    }`} />
+                    <p className={`text-sm font-semibold ${
+                      userType === "company" ? "text-orange-600" : "text-gray-600"
+                    }`}>
                       Empresa
                     </p>
                   </button>
@@ -268,13 +372,11 @@ export default function AuthPage() {
 
             {/* Formulario */}
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Nombre (solo registro) */}
+              {/* Nombre */}
               {!isLogin && (
                 <div className="animate-fade-in">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    {userType === "candidate"
-                      ? "Nombre completo"
-                      : "Nombre de contacto"}
+                    {userType === "candidate" ? "Nombre completo" : "Nombre de contacto"}
                   </label>
                   <div className="relative">
                     <User className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -302,7 +404,7 @@ export default function AuthPage() {
                 </div>
               )}
 
-              {/* Nombre de empresa (solo registro empresa) */}
+              {/* Nombre empresa */}
               {!isLogin && userType === "company" && (
                 <div className="animate-fade-in">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -391,11 +493,7 @@ export default function AuthPage() {
                     disabled={isLoading}
                     className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
                   >
-                    {showPassword ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                   {errors.password && touched.password && (
                     <div className="flex items-center gap-1 mt-1.5 text-red-600 text-xs animate-fade-in">
@@ -404,6 +502,53 @@ export default function AuthPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Indicador fuerza contraseña */}
+                {!isLogin && formData.password && (
+                  <div className="mt-3 space-y-2 animate-fade-in">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full ${passwordStrength.color} transition-all duration-300 ease-out`}
+                          style={{ width: `${passwordStrength.strength}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-1.5 min-w-[100px]">
+                        <PasswordStrengthIcon className={`w-4 h-4 ${
+                          passwordStrength.strength <= 40 ? 'text-red-500' :
+                          passwordStrength.strength <= 60 ? 'text-yellow-500' :
+                          passwordStrength.strength <= 80 ? 'text-blue-500' : 'text-green-500'
+                        }`} />
+                        <span className={`text-xs font-semibold ${
+                          passwordStrength.strength <= 40 ? 'text-red-600' :
+                          passwordStrength.strength <= 60 ? 'text-yellow-600' :
+                          passwordStrength.strength <= 80 ? 'text-blue-600' : 'text-green-600'
+                        }`}>
+                          {passwordStrength.label}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className={`flex items-center gap-1.5 ${passwordStrength.checks.length ? 'text-green-600' : 'text-gray-400'}`}>
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>Mínimo 8 caracteres</span>
+                      </div>
+                      <div className={`flex items-center gap-1.5 ${passwordStrength.checks.uppercase ? 'text-green-600' : 'text-gray-400'}`}>
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>Mayúscula</span>
+                      </div>
+                      <div className={`flex items-center gap-1.5 ${passwordStrength.checks.number ? 'text-green-600' : 'text-gray-400'}`}>
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>Número</span>
+                      </div>
+                      <div className={`flex items-center gap-1.5 ${passwordStrength.checks.special ? 'text-green-600' : 'text-gray-400'}`}>
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>Carácter especial</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Botón Submit */}
@@ -441,7 +586,7 @@ export default function AuthPage() {
               </div>
             </div>
 
-            {/* Botones de demo */}
+            {/* Botones demo */}
             <div className="space-y-2">
               <button
                 type="button"
@@ -469,6 +614,7 @@ export default function AuthPage() {
                 ¿Olvidaste tu contraseña?{" "}
                 <button
                   type="button"
+                  onClick={() => setShowRecoveryModal(true)}
                   className="text-orange-600 hover:text-orange-700 font-semibold transition-colors"
                   disabled={isLoading}
                 >
