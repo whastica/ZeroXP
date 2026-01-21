@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
+import { useAuthForm } from "../hooks/useAuthForm";
 import {
   User,
   Building2,
@@ -14,79 +15,93 @@ import {
   CheckCircle2,
   Briefcase,
   Users,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
-  const [userType, setUserType] = useState("candidate"); // 'candidate' o 'company'
+  const [userType, setUserType] = useState("candidate");
   const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    name: "",
-    companyName: "",
-  });
+  const [isLoading, setIsLoading] = useState(false);
 
-  const { login } = useAuth();
+  const { login, register } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const {
+    formData,
+    errors,
+    touched,
+    handleChange,
+    handleBlur,
+    validateForm,
+    resetForm,
+    fillDemoCredentials,
+  } = useAuthForm(isLogin, userType);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validaciones básicas
-    if (!formData.email || !formData.password) {
-      return toast.error("Por favor completa todos los campos");
+    // Validar formulario
+    if (!validateForm()) {
+      toast.error("Por favor corrige los errores en el formulario");
+      return;
     }
 
-    if (!isLogin && !formData.name) {
-      return toast.error("Por favor ingresa tu nombre");
-    }
+    setIsLoading(true);
 
-    if (!isLogin && userType === "company" && !formData.companyName) {
-      return toast.error("Por favor ingresa el nombre de tu empresa");
-    }
+    // Simular delay de red
+    await new Promise((resolve) => setTimeout(resolve, 800));
 
-    // Simular login/registro
-    const success = login(formData.email, formData.password);
+    try {
+      if (isLogin) {
+        // Login
+        const success = login(formData.email, formData.password);
+        if (success) {
+          toast.success("¡Bienvenido de nuevo!", {
+            icon: "👋",
+          });
+          navigate("/");
+        } else {
+          toast.error("Credenciales inválidas. Intenta con los usuarios de prueba.");
+        }
+      } else {
+        // Registro
+        const userData = {
+          email: formData.email,
+          password: formData.password,
+          name: formData.name,
+          user_type: userType,
+          ...(userType === "company" && { companyName: formData.companyName }),
+        };
 
-    if (success) {
-      toast.success(
-        isLogin
-          ? "¡Bienvenido de nuevo!"
-          : "¡Cuenta creada exitosamente!"
-      );
-      navigate("/");
-    } else {
-      toast.error("Credenciales inválidas. Intenta con los usuarios de prueba.");
+        const result = register(userData);
+        if (result.success) {
+          toast.success("¡Cuenta creada exitosamente!", {
+            icon: "🎉",
+          });
+          navigate("/");
+        } else {
+          toast.error(result.message || "Error al crear la cuenta");
+        }
+      }
+    } catch (error) {
+      toast.error("Ocurrió un error. Intenta nuevamente");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
+  const handleTabChange = (newIsLogin) => {
+    setIsLogin(newIsLogin);
+    resetForm();
+  };
+
+  const handleDemoClick = (type) => {
+    fillDemoCredentials(type);
+    toast.success(`Credenciales de ${type === "candidate" ? "candidato" : "empresa"} cargadas`, {
+      icon: "✨",
     });
-  };
-
-  const fillDemoCredentials = (type) => {
-    if (type === "candidate") {
-      setFormData({
-        email: "juan@example.com",
-        password: "password123",
-        name: "",
-        companyName: "",
-      });
-      setUserType("candidate");
-    } else {
-      setFormData({
-        email: "contacto@techcorp.com",
-        password: "password123",
-        name: "",
-        companyName: "",
-      });
-      setUserType("company");
-    }
-    toast.success(`Credenciales de ${type === "candidate" ? "candidato" : "empresa"} cargadas`);
   };
 
   return (
@@ -101,19 +116,17 @@ export default function AuthPage() {
         {/* Panel izquierdo - Información */}
         <div className="hidden lg:flex flex-col justify-center space-y-8 p-8">
           <div>
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-100 border border-orange-200 mb-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-100 border border-orange-200 mb-6 animate-fade-in">
               <Sparkles className="w-4 h-4 text-orange-600" />
               <span className="text-sm font-semibold text-orange-700">
                 Plataforma #1 en empleos sin experiencia
               </span>
             </div>
-
-            <h1 className="text-5xl font-black text-gray-900 mb-6 leading-tight">
+            <h1 className="text-5xl font-black text-gray-900 mb-6 leading-tight animate-slide-up">
               Conecta tu{" "}
               <span className="text-gradient-orange">futuro laboral</span>
             </h1>
-
-            <p className="text-lg text-gray-600 leading-relaxed">
+            <p className="text-lg text-gray-600 leading-relaxed animate-slide-up">
               Únete a miles de candidatos que han encontrado su primer empleo
               o empresas que descubren talento joven.
             </p>
@@ -138,7 +151,11 @@ export default function AuthPage() {
                 description: "Todas las empresas son validadas por nosotros",
               },
             ].map((feature, idx) => (
-              <div key={idx} className="flex items-start gap-4">
+              <div
+                key={idx}
+                className="flex items-start gap-4 animate-slide-up"
+                style={{ animationDelay: `${idx * 100}ms` }}
+              >
                 <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 shadow-lg shadow-orange-500/30 flex-shrink-0">
                   <feature.icon className="w-6 h-6 text-white" />
                 </div>
@@ -156,27 +173,29 @@ export default function AuthPage() {
         </div>
 
         {/* Panel derecho - Formulario */}
-        <div className="relative">
+        <div className="relative animate-scale-in">
           <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 p-8 md:p-10">
             {/* Tabs Login/Registro */}
             <div className="flex gap-2 p-1 bg-gray-100 rounded-xl mb-8">
               <button
-                onClick={() => setIsLogin(true)}
+                onClick={() => handleTabChange(true)}
+                disabled={isLoading}
                 className={`flex-1 py-3 px-4 rounded-lg font-semibold text-sm transition-all duration-300 ${
                   isLogin
                     ? "bg-white text-gray-900 shadow-md"
                     : "text-gray-600 hover:text-gray-900"
-                }`}
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 Iniciar sesión
               </button>
               <button
-                onClick={() => setIsLogin(false)}
+                onClick={() => handleTabChange(false)}
+                disabled={isLoading}
                 className={`flex-1 py-3 px-4 rounded-lg font-semibold text-sm transition-all duration-300 ${
                   !isLogin
                     ? "bg-white text-gray-900 shadow-md"
                     : "text-gray-600 hover:text-gray-900"
-                }`}
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 Registrarse
               </button>
@@ -184,7 +203,7 @@ export default function AuthPage() {
 
             {/* Selector de tipo de usuario (solo en registro) */}
             {!isLogin && (
-              <div className="mb-6">
+              <div className="mb-6 animate-fade-in">
                 <label className="block text-sm font-semibold text-gray-700 mb-3">
                   ¿Cómo te quieres registrar?
                 </label>
@@ -192,14 +211,15 @@ export default function AuthPage() {
                   <button
                     type="button"
                     onClick={() => setUserType("candidate")}
+                    disabled={isLoading}
                     className={`p-4 rounded-xl border-2 transition-all duration-300 ${
                       userType === "candidate"
-                        ? "border-orange-500 bg-orange-50"
+                        ? "border-orange-500 bg-orange-50 scale-105"
                         : "border-gray-200 hover:border-gray-300"
-                    }`}
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     <User
-                      className={`w-6 h-6 mx-auto mb-2 ${
+                      className={`w-6 h-6 mx-auto mb-2 transition-colors ${
                         userType === "candidate"
                           ? "text-orange-600"
                           : "text-gray-400"
@@ -215,18 +235,18 @@ export default function AuthPage() {
                       Candidato
                     </p>
                   </button>
-
                   <button
                     type="button"
                     onClick={() => setUserType("company")}
+                    disabled={isLoading}
                     className={`p-4 rounded-xl border-2 transition-all duration-300 ${
                       userType === "company"
-                        ? "border-orange-500 bg-orange-50"
+                        ? "border-orange-500 bg-orange-50 scale-105"
                         : "border-gray-200 hover:border-gray-300"
-                    }`}
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     <Building2
-                      className={`w-6 h-6 mx-auto mb-2 ${
+                      className={`w-6 h-6 mx-auto mb-2 transition-colors ${
                         userType === "company"
                           ? "text-orange-600"
                           : "text-gray-400"
@@ -250,9 +270,11 @@ export default function AuthPage() {
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Nombre (solo registro) */}
               {!isLogin && (
-                <div>
+                <div className="animate-fade-in">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    {userType === "candidate" ? "Nombre completo" : "Nombre de contacto"}
+                    {userType === "candidate"
+                      ? "Nombre completo"
+                      : "Nombre de contacto"}
                   </label>
                   <div className="relative">
                     <User className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -261,16 +283,28 @@ export default function AuthPage() {
                       name="name"
                       value={formData.name}
                       onChange={handleChange}
+                      onBlur={handleBlur}
+                      disabled={isLoading}
                       placeholder="Ingresa tu nombre"
-                      className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                      className={`w-full pl-12 pr-4 py-3 rounded-xl border transition-all ${
+                        errors.name && touched.name
+                          ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
+                          : "border-gray-300 focus:ring-orange-500/20 focus:border-orange-500"
+                      } focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed`}
                     />
+                    {errors.name && touched.name && (
+                      <div className="flex items-center gap-1 mt-1.5 text-red-600 text-xs animate-fade-in">
+                        <AlertCircle className="w-3 h-3" />
+                        <span>{errors.name}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
               {/* Nombre de empresa (solo registro empresa) */}
               {!isLogin && userType === "company" && (
-                <div>
+                <div className="animate-fade-in">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Nombre de la empresa
                   </label>
@@ -281,9 +315,21 @@ export default function AuthPage() {
                       name="companyName"
                       value={formData.companyName}
                       onChange={handleChange}
+                      onBlur={handleBlur}
+                      disabled={isLoading}
                       placeholder="Nombre de tu empresa"
-                      className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                      className={`w-full pl-12 pr-4 py-3 rounded-xl border transition-all ${
+                        errors.companyName && touched.companyName
+                          ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
+                          : "border-gray-300 focus:ring-orange-500/20 focus:border-orange-500"
+                      } focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed`}
                     />
+                    {errors.companyName && touched.companyName && (
+                      <div className="flex items-center gap-1 mt-1.5 text-red-600 text-xs animate-fade-in">
+                        <AlertCircle className="w-3 h-3" />
+                        <span>{errors.companyName}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -300,9 +346,21 @@ export default function AuthPage() {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
+                    onBlur={handleBlur}
+                    disabled={isLoading}
                     placeholder="correo@ejemplo.com"
-                    className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                    className={`w-full pl-12 pr-4 py-3 rounded-xl border transition-all ${
+                      errors.email && touched.email
+                        ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
+                        : "border-gray-300 focus:ring-orange-500/20 focus:border-orange-500"
+                    } focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed`}
                   />
+                  {errors.email && touched.email && (
+                    <div className="flex items-center gap-1 mt-1.5 text-red-600 text-xs animate-fade-in">
+                      <AlertCircle className="w-3 h-3" />
+                      <span>{errors.email}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -318,13 +376,20 @@ export default function AuthPage() {
                     name="password"
                     value={formData.password}
                     onChange={handleChange}
+                    onBlur={handleBlur}
+                    disabled={isLoading}
                     placeholder="••••••••"
-                    className="w-full pl-12 pr-12 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                    className={`w-full pl-12 pr-12 py-3 rounded-xl border transition-all ${
+                      errors.password && touched.password
+                        ? "border-red-500 focus:ring-red-500/20 focus:border-red-500"
+                        : "border-gray-300 focus:ring-orange-500/20 focus:border-orange-500"
+                    } focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    disabled={isLoading}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
                   >
                     {showPassword ? (
                       <EyeOff className="w-5 h-5" />
@@ -332,18 +397,34 @@ export default function AuthPage() {
                       <Eye className="w-5 h-5" />
                     )}
                   </button>
+                  {errors.password && touched.password && (
+                    <div className="flex items-center gap-1 mt-1.5 text-red-600 text-xs animate-fade-in">
+                      <AlertCircle className="w-3 h-3" />
+                      <span>{errors.password}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Botón Submit */}
               <button
                 type="submit"
-                className="w-full relative inline-flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl text-base font-bold text-white bg-gradient-to-r from-orange-500 to-red-500 shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 overflow-hidden group"
+                disabled={isLoading}
+                className="w-full relative inline-flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl text-base font-bold text-white bg-gradient-to-r from-orange-500 to-red-500 shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
-                <span className="relative z-10">
-                  {isLogin ? "Iniciar sesión" : "Crear cuenta"}
-                </span>
-                <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform duration-300" />
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Procesando...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="relative z-10">
+                      {isLogin ? "Iniciar sesión" : "Crear cuenta"}
+                    </span>
+                    <ArrowRight className="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform duration-300" />
+                  </>
+                )}
                 <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
               </button>
             </form>
@@ -364,16 +445,18 @@ export default function AuthPage() {
             <div className="space-y-2">
               <button
                 type="button"
-                onClick={() => fillDemoCredentials("candidate")}
-                className="w-full py-2.5 px-4 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                onClick={() => handleDemoClick("candidate")}
+                disabled={isLoading}
+                className="w-full py-2.5 px-4 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 <User className="w-4 h-4" />
                 Probar como Candidato
               </button>
               <button
                 type="button"
-                onClick={() => fillDemoCredentials("company")}
-                className="w-full py-2.5 px-4 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                onClick={() => handleDemoClick("company")}
+                disabled={isLoading}
+                className="w-full py-2.5 px-4 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 <Building2 className="w-4 h-4" />
                 Probar como Empresa
@@ -382,9 +465,13 @@ export default function AuthPage() {
 
             {/* Footer */}
             {isLogin && (
-              <p className="text-center text-sm text-gray-600 mt-6">
+              <p className="text-center text-sm text-gray-600 mt-6 animate-fade-in">
                 ¿Olvidaste tu contraseña?{" "}
-                <button className="text-orange-600 hover:text-orange-700 font-semibold">
+                <button
+                  type="button"
+                  className="text-orange-600 hover:text-orange-700 font-semibold transition-colors"
+                  disabled={isLoading}
+                >
                   Recupérala aquí
                 </button>
               </p>
