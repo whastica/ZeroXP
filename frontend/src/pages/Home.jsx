@@ -1,16 +1,16 @@
 import React, { useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import SearchBar from "../components/SearchBar.jsx";
-import JobCard from "../components/JobCard.jsx";
-import JobDetailModal from "../components/JobDetailModal.jsx";
-import ApplicationModal from "../components/ApplicationModal.jsx";
-import ReportModal from "../components/ReportModal.jsx";
-import { useJobsReducer } from "../hooks/useJobsReducer.js";
-import { Card, CardContent, Badge } from "../components/ui";
-import { useAuth } from "../context/AuthContext.jsx";
-import { mockJobs } from "../data/mockJobs";
-import { addApplication, hasUserApplied } from "../data/mockApplications";
+import SearchBar from "@/components/SearchBar";
+import JobCard from "@/components/JobCard";
+import JobDetailModal from "@/components/JobDetailModal";
+import ApplicationModal from "@/components/ApplicationModal";
+import ReportModal from "@/components/ReportModal";
+import { useJobsReducer } from "@/hooks/useJobsReducer";
+import { Card, CardContent, Badge } from "@/components/ui";
+import { useAuth } from "@/context/AuthContext";
+import { mockJobs } from "@/data/mockJobs";
+import { addApplication, hasUserApplied } from "@/data/mockApplications";
 import { Sparkles, Briefcase, TrendingUp, Users } from "lucide-react";
 
 export default function Home() {
@@ -70,7 +70,7 @@ export default function Home() {
         userId: user.id,
         jobId: state.selectedJob.id,
         applicationMethod: state.applicationType,
-        data: applicationData
+        data: applicationData,
       });
 
       // Cerrar el modal
@@ -86,7 +86,7 @@ export default function Home() {
             <button
               onClick={() => {
                 toast.dismiss(t.id);
-                navigate('/applications');
+                navigate("/applications");
               }}
               className="text-orange-600 hover:text-orange-700 font-medium text-sm underline"
             >
@@ -288,9 +288,7 @@ export default function Home() {
                 Regístrate para recibir alertas personalizadas cuando
                 publiquemos empleos que coincidan con tus intereses.
               </p>
-              <button className="btn-primary">
-                Crear alerta de empleo
-              </button>
+              <button className="btn-primary">Crear alerta de empleo</button>
             </div>
           </div>
         )}
@@ -304,7 +302,7 @@ export default function Home() {
         onApply={handleApply}
         user={user}
       />
-      
+
       <ApplicationModal
         isOpen={state.showApplication}
         onClose={() => dispatch({ type: "HIDE_APPLICATION_MODAL" })}
@@ -313,7 +311,7 @@ export default function Home() {
         user={user}
         onSubmit={handleApplicationSubmit}
       />
-      
+
       <ReportModal
         isOpen={state.showReport}
         onClose={() => dispatch({ type: "HIDE_REPORT_MODAL" })}

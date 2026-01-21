@@ -1,7 +1,7 @@
 // src/components/ApplicationModal.jsx
 import React, { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { Button } from './ui/Button';
+import { Button } from '@/components/ui/Button';
 import { toast } from 'react-hot-toast';
 import { Upload, Linkedin, User, Mail, Phone, FileText } from 'lucide-react';
 
