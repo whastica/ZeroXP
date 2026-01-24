@@ -23,7 +23,7 @@ export const ProtectedRoute = ({ children }) => {
   }
 
   if (!user) {
-    // Redirigir a login guardando la ubicación actual
+    // Redirigir a auth guardando la ubicación actual
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
@@ -111,8 +111,9 @@ export const CompanyRoute = ({ children }) => {
 };
 
 // Ruta pública (solo para no autenticados, como login/register)
+// Redirige al home o dashboard si ya está logueado
 export const PublicRoute = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, isCompany } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -120,10 +121,35 @@ export const PublicRoute = ({ children }) => {
   }
 
   if (user) {
-    // Si ya está autenticado, redirigir al home o a donde venía
-    const from = location.state?.from?.pathname || "/";
-    return <Navigate to={from} replace />;
+    // Redirigir según el tipo de usuario
+    const from = location.state?.from?.pathname;
+    
+    // Si viene de una página específica, ir ahí
+    if (from && from !== '/auth') {
+      return <Navigate to={from} replace />;
+    }
+    
+    // Si es empresa, ir al panel de empresa
+    if (isCompany()) {
+      return <Navigate to="/empresa" replace />;
+    }
+    
+    // Si es candidato, ir al home
+    return <Navigate to="/" replace />;
   }
 
+  return children;
+};
+
+// Nueva: Ruta que permite tanto usuarios autenticados como no autenticados
+// Útil para páginas como Home, Empresas, etc.
+export const PublicWithOptionalAuth = ({ children }) => {
+  const { loading } = useAuth();
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  // Permite acceso a todos (con o sin autenticación)
   return children;
 };

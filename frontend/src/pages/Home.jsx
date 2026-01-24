@@ -35,15 +35,21 @@ export default function Home() {
 
   const handleApply = (job, type) => {
     if (!user) {
-      return toast.error("Debes iniciar sesión para aplicar");
+      toast.error("Debes iniciar sesión para aplicar");
+      // Guardar la ubicación actual para redirigir después del login
+      navigate("/auth", { state: { from: window.location.pathname } });
+      return;
     }
+
     if (user.user_type !== "candidate") {
-      return toast.error("Solo candidatos pueden aplicar");
+      toast.error("Solo candidatos pueden aplicar");
+      return;
     }
 
     // Verificar si ya aplicó a este trabajo
     if (hasUserApplied(user.id, job.id)) {
-      return toast.error("Ya has aplicado a esta oferta");
+      toast.error("Ya has aplicado a esta oferta");
+      return;
     }
 
     dispatch({ type: "SET_SELECTED_JOB", payload: job });
@@ -53,7 +59,9 @@ export default function Home() {
 
   const handleReport = (job) => {
     if (!user) {
-      return toast.error("Debes iniciar sesión para reportar");
+      toast.error("Debes iniciar sesión para reportar");
+      navigate("/auth", { state: { from: window.location.pathname } });
+      return;
     }
     dispatch({ type: "SHOW_REPORT_MODAL", payload: job });
   };
@@ -86,7 +94,7 @@ export default function Home() {
             <button
               onClick={() => {
                 toast.dismiss(t.id);
-                navigate("/applications");
+                navigate("/mis-aplicaciones");
               }}
               className="text-orange-600 hover:text-orange-700 font-medium text-sm underline"
             >
@@ -288,7 +296,16 @@ export default function Home() {
                 Regístrate para recibir alertas personalizadas cuando
                 publiquemos empleos que coincidan con tus intereses.
               </p>
-              <button className="btn-primary">Crear alerta de empleo</button>
+              {!user ? (
+                <button 
+                  onClick={() => navigate('/auth')}
+                  className="btn-primary"
+                >
+                  Registrarme ahora
+                </button>
+              ) : (
+                <button className="btn-primary">Crear alerta de empleo</button>
+              )}
             </div>
           </div>
         )}

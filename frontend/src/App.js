@@ -7,11 +7,12 @@ import {
   CandidateRoute,
   CompanyRoute,
   PublicRoute,
+  PublicWithOptionalAuth,
 } from "./components/ProtectedRoute";
 import { isOnboardingCompleted } from "./services/UserService";
 
 // Components
-import Navbar from "./components/Navbar";
+import Navigation from "./components/Navigation";
 
 // Pages - Public
 import Home from "./pages/Home";
@@ -20,9 +21,6 @@ import AuthPage from "./pages/AuthPage";
 // Pages - Candidates
 import MyApplications from "./pages/MyApplications";
 import OnboardingPage from "./pages/OnboardingPage";
-// import SavedJobs from "./pages/SavedJobs";
-// import Profile from "./pages/Profile";
-// import Settings from "./pages/Settings";
 
 // Pages - Companies
 import CompaniesPage from "./pages/CompaniesPage";
@@ -77,17 +75,23 @@ function App() {
               },
             }}
           />
-          <Navbar />
+          
+          <Navigation />
+
           <Routes>
-            {/* ==================== RUTAS PÚBLICAS ==================== */}
+            {/* ==================== RUTAS PÚBLICAS (SIN LOGIN REQUERIDO) ==================== */}
+            
+            {/* Home - Accesible para todos */}
             <Route 
               path="/" 
               element={
-                <RequireOnboarding>
+                <PublicWithOptionalAuth>
                   <Home />
-                </RequireOnboarding>
+                </PublicWithOptionalAuth>
               } 
             />
+
+            {/* Auth - Solo para usuarios NO logueados */}
             <Route
               path="/auth"
               element={
@@ -96,13 +100,14 @@ function App() {
                 </PublicRoute>
               }
             />
-            {/* Directorio de empresas (accesible para todos) */}
+
+            {/* Directorio de empresas - Accesible para todos */}
             <Route 
-              path="/companies" 
+              path="/empresas" 
               element={
-                <RequireOnboarding>
+                <PublicWithOptionalAuth>
                   <CompaniesPage />
-                </RequireOnboarding>
+                </PublicWithOptionalAuth>
               } 
             />
 
@@ -116,13 +121,14 @@ function App() {
               }
             />
 
-            {/* ==================== RUTAS PROTEGIDAS (TODOS) ==================== */}
+            {/* ==================== RUTAS PROTEGIDAS - REQUIEREN LOGIN Y ONBOARDING ==================== */}
+
+            {/* Perfil */}
             <Route
-              path="/profile"
+              path="/perfil"
               element={
                 <RequireOnboarding>
                   <ProtectedRoute>
-                    {/* <Profile /> */}
                     <div className="container-custom py-20 text-center">
                       <h1 className="text-3xl font-bold">Perfil</h1>
                       <p className="text-gray-600 mt-4">Página en construcción</p>
@@ -131,12 +137,13 @@ function App() {
                 </RequireOnboarding>
               }
             />
+
+            {/* Configuración */}
             <Route
-              path="/settings"
+              path="/configuracion"
               element={
                 <RequireOnboarding>
                   <ProtectedRoute>
-                    {/* <Settings /> */}
                     <div className="container-custom py-20 text-center">
                       <h1 className="text-3xl font-bold">Configuración</h1>
                       <p className="text-gray-600 mt-4">Página en construcción</p>
@@ -147,12 +154,13 @@ function App() {
             />
 
             {/* ==================== RUTAS SOLO CANDIDATOS ==================== */}
+
+            {/* Empleos Guardados */}
             <Route
-              path="/saved-jobs"
+              path="/guardados"
               element={
                 <RequireOnboarding>
                   <CandidateRoute>
-                    {/* <SavedJobs /> */}
                     <div className="container-custom py-20 text-center">
                       <h1 className="text-3xl font-bold">Empleos Guardados</h1>
                       <p className="text-gray-600 mt-4">Página en construcción</p>
@@ -161,9 +169,10 @@ function App() {
                 </RequireOnboarding>
               }
             />
+
             {/* Mis Aplicaciones */}
             <Route
-              path="/applications"
+              path="/mis-aplicaciones"
               element={
                 <RequireOnboarding>
                   <CandidateRoute>
@@ -174,34 +183,36 @@ function App() {
             />
 
             {/* ==================== RUTAS SOLO EMPRESAS ==================== */}
-            
+
             {/* Dashboard de empresa */}
             <Route
-              path="/company/dashboard"
+              path="/empresa"
               element={
                 <CompanyRoute>
                   <CompanyDashboard />
                 </CompanyRoute>
               }
             />
+
             {/* Gestión de ofertas de la empresa */}
             <Route
-              path="/company/offers"
+              path="/empresa/ofertas"
               element={
                 <CompanyRoute>
                   <CompanyOffersPage />
                 </CompanyRoute>
               }
             />
-            {/* Alias para compatibilidad - redirige a /company/offers */}
-            <Route
-              path="/my-jobs"
-              element={
-                <CompanyRoute>
-                  <CompanyOffersPage />
-                </CompanyRoute>
-              }
-            />
+
+            {/* ==================== REDIRECTS LEGACY ==================== */}
+            <Route path="/applications" element={<Navigate to="/mis-aplicaciones" replace />} />
+            <Route path="/saved-jobs" element={<Navigate to="/guardados" replace />} />
+            <Route path="/profile" element={<Navigate to="/perfil" replace />} />
+            <Route path="/settings" element={<Navigate to="/configuracion" replace />} />
+            <Route path="/companies" element={<Navigate to="/empresas" replace />} />
+            <Route path="/company/dashboard" element={<Navigate to="/empresa" replace />} />
+            <Route path="/company/offers" element={<Navigate to="/empresa/ofertas" replace />} />
+            <Route path="/my-jobs" element={<Navigate to="/empresa/ofertas" replace />} />
 
             {/* ==================== 404 NOT FOUND ==================== */}
             <Route
