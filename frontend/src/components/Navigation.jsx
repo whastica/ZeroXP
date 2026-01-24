@@ -1,34 +1,70 @@
 import React, { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import ThemeToggle from './ThemeToggle'; // asumiendo que ya lo tienes
-import MobileMenu from './MobileMenu.jsx';   // opcional, para menu mobile
+import { useAuth } from '../context/AuthContext';
+import ThemeToggle from './ThemeToggle';
+import MobileMenu from './MobileMenu.jsx';
 
-export default function Navigation({ user, onLogout }) {
+export default function Navigation() {
+  const { user, logout, isCandidate, isCompany } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const links = [
-    { name: 'Inicio', path: '/' },
-    ...(user?.user_type === 'company' ? [{ name: 'Panel Empresa', path: '/empresa' }] : [])
-  ];
+  // Links dinámicos según el tipo de usuario
+  const getLinks = () => {
+    const baseLinks = [
+      { name: 'Inicio', path: '/' },
+      { name: 'Empresas', path: '/empresas' }
+    ];
+
+    if (!user) return baseLinks;
+
+    // Links para candidatos
+    if (isCandidate()) {
+      return [
+        ...baseLinks,
+        { name: 'Mis Aplicaciones', path: '/mis-aplicaciones' },
+        { name: 'Trabajos Guardados', path: '/guardados' }
+      ];
+    }
+
+    // Links para empresas
+    if (isCompany()) {
+      return [
+        ...baseLinks,
+        { name: 'Panel Empresa', path: '/empresa' },
+        { name: 'Mis Ofertas', path: '/empresa/ofertas' }
+      ];
+    }
+
+    return baseLinks;
+  };
+
+  const links = getLinks();
+
+  const handleLogout = () => {
+    logout();
+    setMobileOpen(false);
+  };
 
   return (
     <nav className="bg-white dark:bg-gray-900 shadow sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
+          {/* Logo */}
           <div className="flex items-center">
             <Link to="/" className="text-2xl font-bold text-orange-600 dark:text-orange-400">
               ZeroXp
             </Link>
           </div>
 
+          {/* Desktop Navigation */}
           <div className="hidden sm:flex sm:items-center sm:space-x-6">
             {links.map(link => (
               <NavLink
                 key={link.name}
                 to={link.path}
                 className={({ isActive }) =>
-                  `text-gray-700 dark:text-gray-200 hover:text-orange-600 dark:hover:text-orange-400 font-medium ${
-                    isActive ? 'underline underline-offset-4' : ''
+                  `text-gray-700 dark:text-gray-200 hover:text-orange-600 dark:hover:text-orange-400 font-medium transition-colors ${
+                    isActive ? 'text-orange-600 dark:text-orange-400 underline underline-offset-4' : ''
                   }`
                 }
               >
@@ -36,17 +72,33 @@ export default function Navigation({ user, onLogout }) {
               </NavLink>
             ))}
 
+            {/* User Menu */}
             {user ? (
-              <button
-                onClick={onLogout}
-                className="ml-4 px-3 py-1 rounded bg-red-500 hover:bg-red-600 text-white text-sm"
-              >
-                Cerrar Sesión
-              </button>
+              <div className="flex items-center space-x-3 ml-4">
+                {/* User Avatar/Name */}
+                <div className="flex items-center space-x-2">
+                  <img
+                    src={user.profile?.avatar || user.profile?.logo || 'https://api.dicebear.com/7.x/avataaars/svg?seed=default'}
+                    alt={user.profile?.name || user.profile?.companyName}
+                    className="w-8 h-8 rounded-full border-2 border-orange-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                    {user.profile?.name || user.profile?.companyName}
+                  </span>
+                </div>
+
+                {/* Logout Button */}
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white text-sm font-semibold transition-all hover:scale-105"
+                >
+                  Cerrar Sesión
+                </button>
+              </div>
             ) : (
               <Link
-                to="/login"
-                className="ml-4 px-3 py-1 rounded bg-green-500 hover:bg-green-600 text-white text-sm"
+                to="/auth"
+                className="ml-4 px-4 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white text-sm font-semibold transition-all hover:scale-105"
               >
                 Iniciar Sesión
               </Link>
@@ -56,12 +108,13 @@ export default function Navigation({ user, onLogout }) {
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="flex items-center sm:hidden">
+          <div className="flex items-center space-x-2 sm:hidden">
+            <ThemeToggle />
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
               className="inline-flex items-center justify-center p-2 rounded-md text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none"
+              aria-label="Toggle menu"
             >
-              <span className="sr-only">Abrir menú</span>
               <svg
                 className="h-6 w-6"
                 xmlns="http://www.w3.org/2000/svg"
@@ -82,7 +135,12 @@ export default function Navigation({ user, onLogout }) {
 
       {/* Mobile Menu Panel */}
       {mobileOpen && (
-        <MobileMenu links={links} user={user} onLogout={onLogout} />
+        <MobileMenu 
+          links={links} 
+          user={user} 
+          onLogout={handleLogout}
+          onClose={() => setMobileOpen(false)}
+        />
       )}
     </nav>
   );

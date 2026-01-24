@@ -1,8 +1,14 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { authenticateUser, registerUser } from "../data/mockUsers";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { authService } from "../services/auth/authService";
+import { jobActionsService } from "../services/jobs/JobActionsService";
+import { isCandidate, isCompany } from "../constants/userRoles";
 
-const AuthContext = createContext();
+const AuthContext = createContext(undefined);
 
+/**
+ * Hook para consumir el contexto de autenticación
+ * @throws {Error} Si se usa fuera del AuthProvider
+ */
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -11,21 +17,28 @@ export const useAuth = () => {
   return context;
 };
 
+/**
+ * Provider de Autenticación
+ * Maneja el estado global del usuario autenticado
+ */
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Cargar usuario desde localStorage al montar el componente
+  // ============================================================
+  // INICIALIZACIÓN
+  // ============================================================
+  
   useEffect(() => {
     const loadUser = () => {
       try {
-        const storedUser = localStorage.getItem("auth_user");
+        const storedUser = authService.getCurrentUser();
         if (storedUser) {
-          setUser(JSON.parse(storedUser));
+          setUser(storedUser);
         }
       } catch (error) {
         console.error("Error al cargar usuario:", error);
-        localStorage.removeItem("auth_user");
+        authService.logout();
       } finally {
         setLoading(false);
       }
@@ -34,130 +47,195 @@ export const AuthProvider = ({ children }) => {
     loadUser();
   }, []);
 
-  // Login
-  const login = (email, password) => {
-    const result = authenticateUser(email, password);
+  // ============================================================
+  // AUTENTICACIÓN
+  // ============================================================
 
-    if (result.success) {
-      setUser(result.user);
-      localStorage.setItem("auth_user", JSON.stringify(result.user));
-      return true;
+  /**
+   * Inicia sesión
+   * @param {string} email
+   * @param {string} password
+   * @returns {Promise<boolean>}
+   */
+  const login = useCallback(async (email, password) => {
+    try {
+      const result = await authService.login(email, password);
+      
+      if (result.success) {
+        setUser(result.user);
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error("Error en login:", error);
+      return false;
     }
+  }, []);
 
-    return false;
-  };
-
-  // Register
-  const register = (userData) => {
-    const result = registerUser(userData);
-
-    if (result.success) {
-      setUser(result.user);
-      localStorage.setItem("auth_user", JSON.stringify(result.user));
-      return { success: true, user: result.user };
+  /**
+   * Registra un nuevo usuario
+   * @param {Object} userData
+   * @returns {Promise<{success: boolean, user?: Object, message?: string}>}
+   */
+  const register = useCallback(async (userData) => {
+    try {
+      const result = await authService.register(userData);
+      
+      if (result.success) {
+        setUser(result.user);
+        return { success: true, user: result.user };
+      }
+      
+      return { success: false, message: result.error };
+    } catch (error) {
+      console.error("Error en registro:", error);
+      return { success: false, message: "Error al registrar usuario" };
     }
+  }, []);
 
-    return { success: false, message: result.message };
-  };
-
-  // Logout
-  const logout = () => {
+  /**
+   * Cierra sesión
+   */
+  const logout = useCallback(() => {
+    authService.logout();
     setUser(null);
-    localStorage.removeItem("auth_user");
-  };
+  }, []);
 
-  // Update user profile
-  const updateProfile = (updatedData) => {
-    const updatedUser = {
-      ...user,
-      profile: {
-        ...user.profile,
-        ...updatedData,
-      },
-    };
+  // ============================================================
+  // PERFIL
+  // ============================================================
 
-    setUser(updatedUser);
-    localStorage.setItem("auth_user", JSON.stringify(updatedUser));
-    return true;
-  };
+  /**
+   * Actualiza el perfil del usuario
+   * @param {Object} updatedData - Datos a actualizar en el perfil
+   * @returns {boolean}
+   */
+  const updateProfile = useCallback((updatedData) => {
+    if (!user) return false;
 
-  // Check if user is candidate
-  const isCandidate = () => {
-    return user?.user_type === "candidate";
-  };
+    try {
+      const updatedUser = {
+        ...user,
+        profile: {
+          ...user.profile,
+          ...updatedData,
+        },
+      };
 
-  // Check if user is company
-  const isCompany = () => {
-    return user?.user_type === "company";
-  };
-
-  // Add job to saved jobs (solo para candidatos)
-  const saveJob = (jobId) => {
-    if (!isCandidate()) return false;
-
-    const savedJobs = user.profile.savedJobs || [];
-    
-    if (savedJobs.includes(jobId)) {
-      // Ya está guardado, removerlo
-      const updatedSavedJobs = savedJobs.filter(id => id !== jobId);
-      updateProfile({ savedJobs: updatedSavedJobs });
-      return { saved: false, message: "Trabajo removido de guardados" };
-    } else {
-      // Agregar a guardados
-      const updatedSavedJobs = [...savedJobs, jobId];
-      updateProfile({ savedJobs: updatedSavedJobs });
-      return { saved: true, message: "Trabajo guardado exitosamente" };
+      setUser(updatedUser);
+      authService.updateUser(updatedUser);
+      return true;
+    } catch (error) {
+      console.error("Error al actualizar perfil:", error);
+      return false;
     }
-  };
+  }, [user]);
 
-  // Check if job is saved
-  const isJobSaved = (jobId) => {
-    if (!isCandidate()) return false;
-    const savedJobs = user?.profile?.savedJobs || [];
-    return savedJobs.includes(jobId);
-  };
+  // ============================================================
+  // VERIFICACIONES DE ROL
+  // ============================================================
 
-  // Apply to job (solo para candidatos)
-  const applyToJob = (jobId, applicationData) => {
-    if (!isCandidate()) return false;
+  const checkIsCandidate = useCallback(() => {
+    return isCandidate(user);
+  }, [user]);
 
-    const applications = user.profile.applications || [];
-    
-    // Verificar si ya aplicó
-    if (applications.some(app => app.jobId === jobId)) {
-      return { success: false, message: "Ya aplicaste a este trabajo" };
+  const checkIsCompany = useCallback(() => {
+    return isCompany(user);
+  }, [user]);
+
+  // ============================================================
+  // ACCIONES DE TRABAJOS (Solo Candidatos)
+  // ============================================================
+
+  /**
+   * Guarda o remueve un trabajo de favoritos
+   * @param {string} jobId
+   * @returns {{saved: boolean, message: string}}
+   */
+  const saveJob = useCallback((jobId) => {
+    if (!user) return { saved: false, message: "Usuario no autenticado" };
+
+    try {
+      const result = jobActionsService.toggleSaveJob(user, jobId);
+      updateProfile({ savedJobs: result.savedJobs });
+      
+      return {
+        saved: result.saved,
+        message: result.message
+      };
+    } catch (error) {
+      console.error("Error al guardar trabajo:", error);
+      return { saved: false, message: error.message };
     }
+  }, [user, updateProfile]);
 
-    const newApplication = {
-      id: `app_${Date.now()}`,
-      jobId,
-      appliedAt: new Date().toISOString(),
-      status: "pending", // pending, reviewed, accepted, rejected
-      ...applicationData
-    };
+  /**
+   * Verifica si un trabajo está guardado
+   * @param {string} jobId
+   * @returns {boolean}
+   */
+  const isJobSaved = useCallback((jobId) => {
+    return jobActionsService.isJobSaved(user, jobId);
+  }, [user]);
 
-    const updatedApplications = [...applications, newApplication];
-    updateProfile({ applications: updatedApplications });
+  /**
+   * Aplica a un trabajo
+   * @param {string} jobId
+   * @param {Object} applicationData
+   * @returns {{success: boolean, message: string}}
+   */
+  const applyToJob = useCallback((jobId, applicationData) => {
+    if (!user) return { success: false, message: "Usuario no autenticado" };
 
-    return { success: true, message: "Aplicación enviada exitosamente" };
-  };
+    try {
+      const result = jobActionsService.applyToJob(user, jobId, applicationData);
+      
+      if (result.success) {
+        updateProfile({ applications: result.applications });
+      }
+      
+      return {
+        success: result.success,
+        message: result.message
+      };
+    } catch (error) {
+      console.error("Error al aplicar a trabajo:", error);
+      return { success: false, message: error.message };
+    }
+  }, [user, updateProfile]);
 
-  // Check if user has applied to job
-  const hasAppliedToJob = (jobId) => {
-    if (!isCandidate()) return false;
-    const applications = user?.profile?.applications || [];
-    return applications.some(app => app.jobId === jobId);
-  };
+  /**
+   * Verifica si el usuario ya aplicó a un trabajo
+   * @param {string} jobId
+   * @returns {boolean}
+   */
+  const hasAppliedToJob = useCallback((jobId) => {
+    return jobActionsService.hasAppliedToJob(user, jobId);
+  }, [user]);
+
+  // ============================================================
+  // VALOR DEL CONTEXTO
+  // ============================================================
 
   const value = {
+    // Estado
     user,
     loading,
+    
+    // Autenticación
     login,
     register,
     logout,
+    
+    // Perfil
     updateProfile,
-    isCandidate,
-    isCompany,
+    
+    // Verificaciones de rol
+    isCandidate: checkIsCandidate,
+    isCompany: checkIsCompany,
+    
+    // Acciones de trabajos
     saveJob,
     isJobSaved,
     applyToJob,
@@ -166,9 +244,3 @@ export const AuthProvider = ({ children }) => {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
-
-/*Email: juan@example.com
-Password: password123
-
-Email: contacto@techcorp.com
-Password: password123*/
