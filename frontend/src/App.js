@@ -1,13 +1,14 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import {
   ProtectedRoute,
   CandidateRoute,
   CompanyRoute,
   PublicRoute,
 } from "./components/ProtectedRoute";
+import { isOnboardingCompleted } from "./services/UserService";
 
 // Components
 import Navbar from "./components/Navbar";
@@ -18,6 +19,7 @@ import AuthPage from "./pages/AuthPage";
 
 // Pages - Candidates
 import MyApplications from "./pages/MyApplications";
+import OnboardingPage from "./pages/OnboardingPage";
 // import SavedJobs from "./pages/SavedJobs";
 // import Profile from "./pages/Profile";
 // import Settings from "./pages/Settings";
@@ -26,6 +28,23 @@ import MyApplications from "./pages/MyApplications";
 import CompaniesPage from "./pages/CompaniesPage";
 import CompanyDashboard from "./pages/CompanyDashboard";
 import CompanyOffersPage from "./pages/CompanyOffersPage";
+
+// ==================== COMPONENTE REQUIREONBOARDING ====================
+// Redirige a candidatos sin onboarding completado a /onboarding
+const RequireOnboarding = ({ children }) => {
+  const { user, isCandidate } = useAuth();
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // Solo para candidatos: verificar si completó el onboarding
+  if (isCandidate() && !isOnboardingCompleted(user.id)) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  return children;
+};
 
 function App() {
   return (
@@ -61,7 +80,14 @@ function App() {
           <Navbar />
           <Routes>
             {/* ==================== RUTAS PÚBLICAS ==================== */}
-            <Route path="/" element={<Home />} />
+            <Route 
+              path="/" 
+              element={
+                <RequireOnboarding>
+                  <Home />
+                </RequireOnboarding>
+              } 
+            />
             <Route
               path="/auth"
               element={
@@ -70,33 +96,53 @@ function App() {
                 </PublicRoute>
               }
             />
-
             {/* Directorio de empresas (accesible para todos) */}
-            <Route path="/companies" element={<CompaniesPage />} />
+            <Route 
+              path="/companies" 
+              element={
+                <RequireOnboarding>
+                  <CompaniesPage />
+                </RequireOnboarding>
+              } 
+            />
+
+            {/* ==================== ONBOARDING (SOLO CANDIDATOS) ==================== */}
+            <Route
+              path="/onboarding"
+              element={
+                <CandidateRoute>
+                  <OnboardingPage />
+                </CandidateRoute>
+              }
+            />
 
             {/* ==================== RUTAS PROTEGIDAS (TODOS) ==================== */}
             <Route
               path="/profile"
               element={
-                <ProtectedRoute>
-                  {/* <Profile /> */}
-                  <div className="container-custom py-20 text-center">
-                    <h1 className="text-3xl font-bold">Perfil</h1>
-                    <p className="text-gray-600 mt-4">Página en construcción</p>
-                  </div>
-                </ProtectedRoute>
+                <RequireOnboarding>
+                  <ProtectedRoute>
+                    {/* <Profile /> */}
+                    <div className="container-custom py-20 text-center">
+                      <h1 className="text-3xl font-bold">Perfil</h1>
+                      <p className="text-gray-600 mt-4">Página en construcción</p>
+                    </div>
+                  </ProtectedRoute>
+                </RequireOnboarding>
               }
             />
             <Route
               path="/settings"
               element={
-                <ProtectedRoute>
-                  {/* <Settings /> */}
-                  <div className="container-custom py-20 text-center">
-                    <h1 className="text-3xl font-bold">Configuración</h1>
-                    <p className="text-gray-600 mt-4">Página en construcción</p>
-                  </div>
-                </ProtectedRoute>
+                <RequireOnboarding>
+                  <ProtectedRoute>
+                    {/* <Settings /> */}
+                    <div className="container-custom py-20 text-center">
+                      <h1 className="text-3xl font-bold">Configuración</h1>
+                      <p className="text-gray-600 mt-4">Página en construcción</p>
+                    </div>
+                  </ProtectedRoute>
+                </RequireOnboarding>
               }
             />
 
@@ -104,23 +150,26 @@ function App() {
             <Route
               path="/saved-jobs"
               element={
-                <CandidateRoute>
-                  {/* <SavedJobs /> */}
-                  <div className="container-custom py-20 text-center">
-                    <h1 className="text-3xl font-bold">Empleos Guardados</h1>
-                    <p className="text-gray-600 mt-4">Página en construcción</p>
-                  </div>
-                </CandidateRoute>
+                <RequireOnboarding>
+                  <CandidateRoute>
+                    {/* <SavedJobs /> */}
+                    <div className="container-custom py-20 text-center">
+                      <h1 className="text-3xl font-bold">Empleos Guardados</h1>
+                      <p className="text-gray-600 mt-4">Página en construcción</p>
+                    </div>
+                  </CandidateRoute>
+                </RequireOnboarding>
               }
             />
-
             {/* Mis Aplicaciones */}
             <Route
               path="/applications"
               element={
-                <CandidateRoute>
-                  <MyApplications />
-                </CandidateRoute>
+                <RequireOnboarding>
+                  <CandidateRoute>
+                    <MyApplications />
+                  </CandidateRoute>
+                </RequireOnboarding>
               }
             />
 
@@ -135,7 +184,6 @@ function App() {
                 </CompanyRoute>
               }
             />
-
             {/* Gestión de ofertas de la empresa */}
             <Route
               path="/company/offers"
@@ -145,7 +193,6 @@ function App() {
                 </CompanyRoute>
               }
             />
-
             {/* Alias para compatibilidad - redirige a /company/offers */}
             <Route
               path="/my-jobs"
